@@ -1,0 +1,12 @@
+streamlit
+ultralytics
+pydantic[email]
+python-jose[cryptography]
+passlib[argon2]
+uvicorn 
+sqlalchemy 
+numpy
+pandas
+Pillow
+fastapi
+python-dotenv
