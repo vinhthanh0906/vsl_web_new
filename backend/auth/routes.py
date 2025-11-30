@@ -3,15 +3,17 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 
-sys.path.append(r"D:\WORK\Python\web\web_app_vsl\backend\modules")
+sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
+
 from modules.database import SessionLocal
 from modules.create_table import User
-from utils import hash_password, verify_password, create_access_token
+from utils import create_access_token
 from modules.schemas import UserCreate, UserLogin, UserResponse
+from verify import hash_password, verify_password
 
 
 
-router = APIRouter(prefix="", tags=["Auth"])
+router = APIRouter(prefix="", tags=["auth"])
 
 def get_db():
     db = SessionLocal()
@@ -22,7 +24,7 @@ def get_db():
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user.username).first()
+    existing_user = db.query(User).filter(User.username == user.username).first() #auth
     if existing_user:
         raise HTTPException(status_code=400, detail="Username already exists")
 
@@ -36,11 +38,12 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.username == user.username).first()
+    db_user = db.query(User).filter(User.username == user.username).first() #auth
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     token = create_access_token({"sub": db_user.username})
     return {"access_token": token, "token_type": "bearer"}
+
 
 

@@ -1,47 +1,88 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
 
 export default function CoursesPage() {
-  const courses = [
+  const [selectedSection, setSelectedSection] = useState<string | null>(null)
+
+  const sections = [
     {
-      id: 1,
-      title: "Greetings",
+      id: "alphabet",
+      title: "Vietnamese Alphabet",
       level: "BEGINNER",
-      progress: 0,
-      description: "Learn basic greeting signs including hello, goodbye, and thank you.",
+      description: "Learn Vietnamese hand signs for each letter A-Z",
+      lessonType: "letter",
       lessons: [
-        { id: 1, name: "Hello & Goodbye", locked: false },
-        { id: 2, name: "Thank You & Please", locked: true },
-        { id: 3, name: "Yes & No", locked: true },
+        { id: "a", name: "A" },
+        { id: "b", name: "B" },
+        { id: "c", name: "C" },
+        { id: "d", name: "D" },
+        { id: "e", name: "E" },
+        { id: "f", name: "F" },
+        { id: "g", name: "G" },
+        { id: "h", name: "H" },
+        { id: "i", name: "I" },
+        { id: "j", name: "J" },
       ],
     },
     {
-      id: 2,
-      title: "Introduction",
+      id: "greetings",
+      title: "Greeting & Basic Conversation",
       level: "BEGINNER",
-      progress: 0,
-      description: "Master self-introduction and personal information signs.",
+      description: "Master essential greetings and conversational phrases",
+      lessonType: "word",
       lessons: [
-        { id: 1, name: "My Name Is...", locked: false },
-        { id: 2, name: "Where Are You From?", locked: true },
-        { id: 3, name: "What Do You Do?", locked: true },
+        { id: "xin_chao", name: "Xin Chào" },
+        { id: "tam_biet", name: "Tạm Biệt" },
+        { id: "cam_on", name: "Cảm ơn" },
+        { id: "lam_on", name: "Làm ơn" },
+        { id: "bao_nhieu", name: "Bao nhiêu"},
+        { id: "cai_gi", name: "Cái gì"},
+        { id: "nhu_the_nao", name: "Tên là"},
+        { id: "xin_loi", name: "Xin lỗi"},
+        { id: "ten_la", name: "Tên là"},
+        { id: "toi", name: "Tôi"},
+        { id: "ban", name: "Bạn"},
+        { id: "tuoi", name: "Tuổi"}
       ],
     },
     {
-      id: 3,
-      title: "Basic Conversation",
+      id: "verbs",
+      title: "Basic Verbs",
+      level: "BEGINNER",
+      description: "Learn common action signs and verbs",
+      lessonType: "word",
+      lessons: [
+        { id: "go", name: "Go" },
+        { id: "come", name: "Come" },
+        { id: "an", name: "Ăn" },
+        { id: "sleep", name: "Sleep" },
+        { id: "work", name: "Work" },
+        { id: "play", name: "Play" },
+      ],
+    },
+    {
+      id: "nouns",
+      title: "Common Nouns",
       level: "INTERMEDIATE",
-      progress: 0,
-      description: "Engage in simple everyday conversations.",
+      description: "Essential words for everyday objects and people",
+      lessonType: "word",
       lessons: [
-        { id: 1, name: "How Are You?", locked: false },
-        { id: 2, name: "Small Talk", locked: true },
-        { id: 3, name: "Asking for Help", locked: true },
+        { id: "family", name: "Family" },
+        { id: "food", name: "Food" },
+        { id: "house", name: "House" },
+        { id: "school", name: "School" },
+        { id: "work", name: "Work" },
+        { id: "friend", name: "Friend" },
       ],
     },
   ]
+
+  const currentSection = sections.find((s) => s.id === selectedSection)
 
   return (
     <main className="min-h-screen bg-background">
@@ -49,48 +90,74 @@ export default function CoursesPage() {
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-foreground mb-2">COURSE CATALOG</h1>
-          <p className="text-muted-foreground">Select a lesson to begin your journey</p>
+          <p className="text-muted-foreground">
+            {selectedSection ? "Select a lesson to practice" : "Select a course section to begin"}
+          </p>
         </div>
 
-        {/* Courses Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {courses.map((course) => (
-            <Card key={course.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              {/* Course Header */}
-              <div className="bg-gradient-to-r from-primary/20 to-primary/10 p-4 border-b border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant="outline">{course.level}</Badge>
-                  <span className="text-sm font-medium text-muted-foreground">{course.progress}%</span>
-                </div>
-              </div>
-
-              {/* Course Content */}
-              <div className="p-6 space-y-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-foreground mb-2">{course.title}</h2>
-                  <p className="text-muted-foreground">{course.description}</p>
+        {!selectedSection ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+            {sections.map((section) => (
+              <Card
+                key={section.id}
+                className="overflow-hidden hover:shadow-lg transition-all cursor-pointer hover:border-primary"
+                onClick={() => setSelectedSection(section.id)}
+              >
+                {/* Section Header */}
+                <div className="bg-gradient-to-r from-primary/20 to-primary/10 p-4 border-b border-border">
+                  <Badge variant="outline">{section.level}</Badge>
                 </div>
 
-                {/* Lessons List */}
-                <div className="space-y-2">
-                  <h3 className="text-sm font-semibold text-foreground">Lessons:</h3>
-                  {course.lessons.map((lesson) => (
-                    <div key={lesson.id} className="flex items-center gap-3 p-2 bg-muted/50 rounded">
-                      <span className="text-xs font-bold text-primary w-6">{String(lesson.id).padStart(2, "0")}</span>
-                      <span className="text-sm text-foreground flex-1">{lesson.name}</span>
-                      <span className="text-lg">{lesson.locked ? "🔒" : "✓"}</span>
+                {/* Section Content */}
+                <div className="p-6 space-y-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground mb-2">{section.title}</h2>
+                    <p className="text-muted-foreground text-sm">{section.description}</p>
+                  </div>
+
+                  {/* Lesson Count */}
+                  <div className="flex items-center justify-between pt-4 border-t border-border">
+                    <span className="text-sm text-muted-foreground">{section.lessons.length} lessons available</span>
+                    <span className="text-primary font-semibold">→</span>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div>
+            {/* Back Button */}
+            <Button variant="outline" onClick={() => setSelectedSection(null)} className="mb-6">
+              ← Back to Sections
+            </Button>
+
+            {/* Section Title */}
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-foreground">{currentSection?.title}</h2>
+              <p className="text-muted-foreground mt-2">{currentSection?.description}</p>
+            </div>
+
+            {/* Lessons Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {currentSection?.lessons.map((lesson, idx) => (
+                <Link key={lesson.id} href={`/practice?section=${selectedSection}&lesson=${lesson.id}`}>
+                  <Card className="p-6 hover:shadow-lg hover:border-primary transition-all cursor-pointer h-full">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-semibold text-primary">
+                        LESSON {String(idx + 1).padStart(2, "0")}
+                      </span>
                     </div>
-                  ))}
-                </div>
-
-                {/* Action Button */}
-                <Link href="/practice" className="block">
-                  <Button className="w-full">Start Course</Button>
+                    <h3 className="text-lg font-bold text-foreground mb-2">{lesson.name}</h3>
+                    <p className="text-xs text-muted-foreground mb-4">Learn to sign "{lesson.name}" in Vietnamese</p>
+                    <Button size="sm" className="w-full">
+                      Start Lesson
+                    </Button>
+                  </Card>
                 </Link>
-              </div>
-            </Card>
-          ))}
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   )

@@ -3,9 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 import sys
 
 # 🧩 Add your module paths
-sys.path.append(r"D:\WORK\Python\web\web_app_vsl\backend\auth")
-sys.path.append(r"D:\WORK\Python\web\web_app_vsl\backend\modules")
-sys.path.append(r"D:\WORK\Python\web\web_app_vsl\backend\yolo")
+sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\auth")
+sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
+sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\yolo")
 
 
 # 🗄️ Import database and models
@@ -16,7 +16,7 @@ from yolo.routes import router as yolo_router
 
 
 
-# ✅ Check database connection
+#Check database connection
 try:
     conn = engine.connect()
     print("✅ Database connected successfully!")
@@ -24,13 +24,12 @@ try:
 except Exception as e:
     print("❌ Database connection failed:", e)
 
-# 🚀 Initialize FastAPI
 app = FastAPI(title="Sign Language Backend API")
 
 
 
 
-# 🌐 CORS setup
+#CORS setup
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,19 +41,19 @@ app.add_middleware(
 
 
 
-# 🔐 Include authentication routes
+#Include authentication routes
 app.include_router(auth_routes.router, prefix="/auth", tags=["auth"])
 app.include_router(yolo_router)
 
 
 
 
-# 🏠 Root route
+# Root route
 @app.get("/")
 def root():
     return {"message": "✅ Sign Language Backend is running!"}
 
-# ❤️ Health check
+#Health check
 @app.get("/health")
 def health():
     return {"status": "ok"}

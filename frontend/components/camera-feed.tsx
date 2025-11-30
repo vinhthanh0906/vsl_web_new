@@ -12,16 +12,21 @@ interface CameraFeedProps {
 
 export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null) // chỉ vẽ bbox
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const animationFrameRef = useRef<number>()
 
-  const BACKEND_URL = "http://localhost:8000/yolo/predict"
+  const BACKEND_URL = "http://127.0.0.1:8000/yolo/predict" // hoặc localhost cũng được
 
   useEffect(() => {
     if (!isActive) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
+      // clear canvas khi stop
+      if (canvasRef.current) {
+        const ctx = canvasRef.current.getContext("2d")
+        if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+      }
       return
     }
 
@@ -51,19 +56,21 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
 
     const startDetection = () => {
       const detectFrame = async () => {
-        if (!videoRef.current || !canvasRef.current || !isActive) return
-        const ctx = canvasRef.current.getContext("2d")
-        if (!ctx) return
+        if (!videoRef.current || !isActive) return
 
-        canvasRef.current.width = videoRef.current.videoWidth
-        canvasRef.current.height = videoRef.current.videoHeight
-        ctx.drawImage(videoRef.current, 0, 0)
+        const video = videoRef.current
+
+        // 1️⃣ Canvas ẩn dùng để chụp frame gửi backend
+        const captureCanvas = document.createElement("canvas")
+        captureCanvas.width = video.videoWidth
+        captureCanvas.height = video.videoHeight
+        const captureCtx = captureCanvas.getContext("2d")
+        if (!captureCtx) return
+
+        captureCtx.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height)
+        const frame = captureCanvas.toDataURL("image/jpeg")
 
         try {
-          // Convert current frame to base64
-          const frame = canvasRef.current.toDataURL("image/jpeg")
-
-          // Send frame to backend
           const response = await fetch(BACKEND_URL, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -75,30 +82,46 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
           const data = await response.json()
           const detections = data.detections || []
 
-          // Draw YOLO boxes
-          ctx.lineWidth = 2
-          ctx.font = "16px Arial"
-          ctx.textBaseline = "top"
+          // 2️⃣ Vẽ bounding box lên canvas overlay
+          if (canvasRef.current) {
+            const canvas = canvasRef.current
+            const ctx = canvas.getContext("2d")
+            if (ctx) {
+              canvas.width = video.videoWidth
+              canvas.height = video.videoHeight
 
-          detections.forEach((d: any) => {
-            const [x1, y1, x2, y2] = d.bbox
-            const width = x2 - x1
-            const height = y2 - y1
-            ctx.strokeStyle = "#00FF00"
-            ctx.fillStyle = "rgba(0,255,0,0.2)"
-            ctx.strokeRect(x1, y1, width, height)
-            ctx.fillRect(x1, y1, width, height)
-            ctx.fillStyle = "#000"
-            ctx.fillText(`${d.class} ${(d.confidence * 100).toFixed(1)}%`, x1 + 5, y1 + 5)
-          })
+              // xóa khung cũ
+              ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+              ctx.lineWidth = 2
+              ctx.font = "16px Arial"
+              ctx.textBaseline = "top"
+
+              detections.forEach((d: any) => {
+                const [x1, y1, x2, y2] = d.bbox
+                const width = x2 - x1
+                const height = y2 - y1
+
+                ctx.strokeStyle = "#00FF00"
+                ctx.fillStyle = "rgba(0,255,0,0.2)"
+                ctx.strokeRect(x1, y1, width, height)
+                ctx.fillRect(x1, y1, width, height)
+
+                ctx.fillStyle = "#000"
+                ctx.fillText(`${d.class} ${(d.confidence * 100).toFixed(1)}%`, x1 + 5, y1 + 5)
+              })
+            }
+          }
+
+          // 3️⃣ Gửi dữ liệu ra ngoài cho PracticePage dùng
           onDetections(detections)
           onStatsUpdate({
             totalDetections: detections.length,
             accuracy:
               detections.length > 0
                 ? (
-                    (detections.reduce((sum, d) => sum + d.confidence, 0) / detections.length) *
+                    (detections.reduce((sum: number, d: any) => sum + d.confidence, 0) /
+                      detections.length) *
                     100
                   ).toFixed(1)
                 : 0,
@@ -107,6 +130,7 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
           console.error("YOLO detection error:", err)
         }
 
+        // lặp lại
         animationFrameRef.current = requestAnimationFrame(detectFrame)
       }
 
@@ -140,8 +164,11 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
       )}
 
       <div className="relative aspect-video bg-black">
+        {/* video hiển thị hình */}
         <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+
+        {/* canvas overlay chỉ vẽ bbox */}
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       </div>
     </div>
   )

@@ -11,7 +11,7 @@ load_dotenv(dotenv_path="D:/WORK/Python/web/web_app_vsl/.env")
 DATABASE_URL = os.getenv("DB_URL")
 
 if not DATABASE_URL:
-    raise ValueError("❌ DATABASE_URL not found in .env file")
+    raise ValueError("DATABASE_URL not found in .env file")
 
 # Create engine
 engine = create_engine(DATABASE_URL)

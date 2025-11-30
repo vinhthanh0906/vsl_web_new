@@ -16,12 +16,17 @@ interface User {
   name: string
 }
 
+interface Lesson {
+  id: string
+  name: string
+  completed: boolean
+}
+
 interface CourseProgress {
   id: string
   name: string
+  lessons: Lesson[]
   progress: number
-  lessons: number
-  completed: number
 }
 
 interface DailyStats {
@@ -58,15 +63,75 @@ export default function ProgressPage() {
     return null
   }
 
-  // Mock data for courses
   const courseProgress: CourseProgress[] = [
-    { id: "1", name: "YOLO Basics", progress: 100, lessons: 5, completed: 5 },
-    { id: "2", name: "Object Detection 101", progress: 75, lessons: 8, completed: 6 },
-    { id: "3", name: "Advanced Detection", progress: 40, lessons: 10, completed: 4 },
-    { id: "4", name: "Real-time Processing", progress: 20, lessons: 6, completed: 1 },
+    {
+      id: "alphabet",
+      name: "Vietnamese Alphabet",
+      lessons: [
+        { id: "a", name: "A", completed: true },
+        { id: "b", name: "B", completed: true },
+        { id: "c", name: "C", completed: true },
+        { id: "d", name: "D", completed: false },
+        { id: "e", name: "E", completed: false },
+        { id: "f", name: "F", completed: false },
+        { id: "g", name: "G", completed: false },
+        { id: "h", name: "H", completed: false },
+        { id: "i", name: "I", completed: false },
+        { id: "j", name: "J", completed: false },
+      ],
+      progress: 30,
+    },
+    {
+      id: "greetings",
+      name: "Greeting & Basic Conversation",
+      lessons: [
+        { id: "hello", name: "Hello", completed: true },
+        { id: "goodbye", name: "Goodbye", completed: true },
+        { id: "thankyou", name: "Thank You", completed: true },
+        { id: "please", name: "Please", completed: true },
+        { id: "yes", name: "Yes", completed: false },
+        { id: "no", name: "No", completed: false },
+      ],
+      progress: 67,
+    },
+    {
+      id: "verbs",
+      name: "Basic Verbs",
+      lessons: [
+        { id: "go", name: "Go", completed: true },
+        { id: "come", name: "Come", completed: true },
+        { id: "eat", name: "Eat", completed: false },
+        { id: "sleep", name: "Sleep", completed: false },
+        { id: "work", name: "Work", completed: false },
+        { id: "play", name: "Play", completed: false },
+      ],
+      progress: 33,
+    },
+    {
+      id: "nouns",
+      name: "Common Nouns",
+      lessons: [
+        { id: "family", name: "Family", completed: true },
+        { id: "food", name: "Food", completed: false },
+        { id: "house", name: "House", completed: false },
+        { id: "school", name: "School", completed: false },
+        { id: "work", name: "Work", completed: false },
+        { id: "friend", name: "Friend", completed: false },
+      ],
+      progress: 17,
+    },
   ]
 
-  // Mock data for daily stats
+  const consistencyData = [
+    { day: "Mon", sessions: 5 },
+    { day: "Tue", sessions: 3 },
+    { day: "Wed", sessions: 7 },
+    { day: "Thu", sessions: 4 },
+    { day: "Fri", sessions: 6 },
+    { day: "Sat", sessions: 2 },
+    { day: "Sun", sessions: 8 },
+  ]
+
   const dailyStats: DailyStats[] = [
     { date: "Mon", detections: 245, accuracy: 92 },
     { date: "Tue", detections: 312, accuracy: 94 },
@@ -79,8 +144,13 @@ export default function ProgressPage() {
 
   const totalDetections = dailyStats.reduce((sum, day) => sum + day.detections, 0)
   const avgAccuracy = Math.round(dailyStats.reduce((sum, day) => sum + day.accuracy, 0) / dailyStats.length)
-  const totalLessonsCompleted = courseProgress.reduce((sum, course) => sum + course.completed, 0)
-  const totalLessons = courseProgress.reduce((sum, course) => sum + course.lessons, 0)
+  const totalLessonsCompleted = courseProgress.reduce(
+    (sum, course) => sum + course.lessons.filter((l) => l.completed).length,
+    0,
+  )
+  const totalLessons = courseProgress.reduce((sum, course) => sum + course.lessons.length, 0)
+
+  const maxSessions = Math.max(...consistencyData.map((d) => d.sessions))
 
   return (
     <main className="min-h-screen bg-background">
@@ -136,50 +206,114 @@ export default function ProgressPage() {
           </Card>
         </div>
 
-        {/* Course Progress */}
         <Card className="p-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
+          <div className="mb-6">
             <h2 className="text-lg font-semibold text-foreground">Course Progress</h2>
-            <div className="flex gap-2">
-              <Button
-                variant={timeRange === "week" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("week")}
-              >
-                Week
-              </Button>
-              <Button
-                variant={timeRange === "month" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("month")}
-              >
-                Month
-              </Button>
-              <Button
-                variant={timeRange === "year" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTimeRange("year")}
-              >
-                Year
-              </Button>
-            </div>
+            <p className="text-sm text-muted-foreground mt-2">Track your completion for each course and lesson</p>
           </div>
 
-          <div className="space-y-6">
+          <Tabs defaultValue={courseProgress[0].id} className="w-full">
+            <TabsList
+              className="grid w-full gap-2"
+              style={{ gridTemplateColumns: `repeat(auto-fit, minmax(200px, 1fr))` }}
+            >
+              {courseProgress.map((course) => (
+                <TabsTrigger key={course.id} value={course.id} className="text-sm">
+                  {course.name.split(" ")[0]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
             {courseProgress.map((course) => (
-              <div key={course.id}>
-                <div className="flex justify-between items-center mb-2">
-                  <div>
-                    <h3 className="font-medium text-foreground">{course.name}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {course.completed} of {course.lessons} lessons completed
-                    </p>
+              <TabsContent key={course.id} value={course.id} className="mt-6 space-y-6">
+                {/* Course Overall Progress */}
+                <div>
+                  <div className="flex justify-between items-center mb-3">
+                    <div>
+                      <h3 className="font-semibold text-foreground text-lg">{course.name}</h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {course.lessons.filter((l) => l.completed).length} of {course.lessons.length} lessons completed
+                      </p>
+                    </div>
+                    <Badge variant={course.progress === 100 ? "default" : "outline"}>{course.progress}%</Badge>
                   </div>
-                  <Badge variant={course.progress === 100 ? "default" : "outline"}>{course.progress}%</Badge>
+                  <Progress value={course.progress} className="h-3" />
                 </div>
-                <Progress value={course.progress} className="h-2" />
+
+                {/* Individual Lesson Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {course.lessons.map((lesson) => (
+                    <div
+                      key={lesson.id}
+                      className={`p-4 rounded-lg border-2 transition-all ${
+                        lesson.completed
+                          ? "border-green-500 bg-green-500/10"
+                          : "border-border bg-muted/50 hover:border-primary"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-foreground">{lesson.name}</span>
+                        {lesson.completed && <Badge className="bg-green-500">✓ Done</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        {lesson.completed ? "Lesson completed successfully" : "Not started yet"}
+                      </p>
+                      {!lesson.completed && (
+                        <Link href={`/practice?section=${course.id}&lesson=${lesson.id}`}>
+                          <Button size="sm" className="w-full">
+                            Start Lesson
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </TabsContent>
+            ))}
+          </Tabs>
+        </Card>
+
+        <Card className="p-6 mb-8">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-foreground">Practice Consistency</h2>
+            <p className="text-sm text-muted-foreground mt-2">Your practice sessions per day this week</p>
+          </div>
+
+          <div className="flex items-end justify-between gap-2 h-48 p-4 bg-muted/30 rounded-lg">
+            {consistencyData.map((data, idx) => (
+              <div key={idx} className="flex flex-col items-center flex-1 gap-2">
+                <div className="relative w-full flex items-end justify-center h-32">
+                  <div
+                    className="w-full max-w-12 bg-gradient-to-t from-primary to-primary/60 rounded-t transition-all hover:shadow-lg"
+                    style={{
+                      height: `${(data.sessions / maxSessions) * 100}%`,
+                      minHeight: "4px",
+                    }}
+                    title={`${data.sessions} sessions`}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-foreground">{data.day}</span>
+                <span className="text-xs text-muted-foreground">{data.sessions} sessions</span>
               </div>
             ))}
+          </div>
+
+          <div className="mt-6 p-4 bg-muted rounded-lg">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Weekly Average</p>
+                <p className="text-2xl font-bold text-primary mt-1">
+                  {Math.round(consistencyData.reduce((sum, d) => sum + d.sessions, 0) / consistencyData.length)}{" "}
+                  sessions/day
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-foreground">Most Active Day</p>
+                <p className="text-lg font-bold text-primary mt-1">
+                  {consistencyData.reduce((max, d) => (d.sessions > max.sessions ? d : max)).day}
+                </p>
+              </div>
+            </div>
           </div>
         </Card>
 

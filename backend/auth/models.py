@@ -3,12 +3,13 @@ import sys
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-sys.path.append(r"D:\WORK\Python\web\web_app_vsl\backend\modules")
-sys.path.append(r"D:\WORK\Python\web\web_app_vsl\model")
-
 from modules.database import SessionLocal
 from modules.yolo_db import ModelInfo
 from ultralytics import YOLO
+
+sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
+sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\yolo\model")
+
 
 router = APIRouter(prefix="/models", tags=["models"])
 UPLOAD_DIR = "models"
