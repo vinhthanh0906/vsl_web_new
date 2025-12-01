@@ -4,6 +4,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+
+
+
 # Load environment variables from .env
 load_dotenv(dotenv_path="D:/WORK/Python/web/web_app_vsl/.env")
 

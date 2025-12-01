@@ -3,6 +3,7 @@ import sys
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+
 from modules.database import SessionLocal
 from modules.yolo_db import ModelInfo
 from ultralytics import YOLO
@@ -22,6 +23,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
 
 # 🔹 Upload model
 @router.post("/upload")

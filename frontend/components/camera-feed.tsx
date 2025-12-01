@@ -1,28 +1,35 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AlertCircle, Loader2 } from "lucide-react"
+import { AlertCircle, Loader2, Check } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface CameraFeedProps {
   isActive: boolean
   onDetections: (detections: any[]) => void
   onStatsUpdate: (stats: any) => void
+  targetLesson?: string | null
+  showGreenTick?: boolean
 }
 
-export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: CameraFeedProps) {
+export default function CameraFeed({
+  isActive,
+  onDetections,
+  onStatsUpdate,
+  targetLesson,
+  showGreenTick,
+}: CameraFeedProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null) // chỉ vẽ bbox
+  const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const animationFrameRef = useRef<number>()
 
-  const BACKEND_URL = "http://127.0.0.1:8000/yolo/predict" // hoặc localhost cũng được
+  const BACKEND_URL = "http://127.0.0.1:8000/yolo/predict"
 
   useEffect(() => {
     if (!isActive) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current)
-      // clear canvas khi stop
       if (canvasRef.current) {
         const ctx = canvasRef.current.getContext("2d")
         if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
@@ -102,26 +109,27 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
                 const width = x2 - x1
                 const height = y2 - y1
 
-                ctx.strokeStyle = "#00FF00"
-                ctx.fillStyle = "rgba(0,255,0,0.2)"
+                const isMatch = targetLesson && d.class.toLowerCase() === targetLesson.toLowerCase()
+                ctx.strokeStyle = isMatch ? "#00FF00" : "#FF6B35"
+                ctx.lineWidth = isMatch ? 3 : 2
+                ctx.fillStyle = isMatch ? "rgba(0,255,0,0.2)" : "rgba(0,0,0,0)"
                 ctx.strokeRect(x1, y1, width, height)
                 ctx.fillRect(x1, y1, width, height)
 
-                ctx.fillStyle = "#000"
+                ctx.fillStyle = isMatch ? "#00FF00" : "#FFF"
                 ctx.fillText(`${d.class} ${(d.confidence * 100).toFixed(1)}%`, x1 + 5, y1 + 5)
               })
             }
           }
 
-          // 3️⃣ Gửi dữ liệu ra ngoài cho PracticePage dùng
+          // Gửi dữ liệu ra ngoài cho PracticePage dùng
           onDetections(detections)
           onStatsUpdate({
             totalDetections: detections.length,
             accuracy:
               detections.length > 0
                 ? (
-                    (detections.reduce((sum: number, d: any) => sum + d.confidence, 0) /
-                      detections.length) *
+                    (detections.reduce((sum: number, d: any) => sum + d.confidence, 0) / detections.length) *
                     100
                   ).toFixed(1)
                 : 0,
@@ -146,7 +154,7 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
         tracks.forEach((track) => track.stop())
       }
     }
-  }, [isActive, onDetections, onStatsUpdate])
+  }, [isActive, onDetections, onStatsUpdate, targetLesson])
 
   return (
     <div className="relative w-full bg-black rounded-lg overflow-hidden">
@@ -164,11 +172,16 @@ export default function CameraFeed({ isActive, onDetections, onStatsUpdate }: Ca
       )}
 
       <div className="relative aspect-video bg-black">
-        {/* video hiển thị hình */}
         <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-
-        {/* canvas overlay chỉ vẽ bbox */}
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+
+        {showGreenTick && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="w-24 h-24 rounded-full border-4 border-green-500 flex items-center justify-center bg-green-500/10 animate-bounce">
+              <Check className="w-16 h-16 text-green-500 font-bold" strokeWidth={3} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

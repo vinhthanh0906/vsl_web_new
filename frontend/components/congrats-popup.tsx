@@ -2,23 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Sparkles } from "lucide-react"
+import { Check } from "lucide-react"
 
 interface CongratsPopupProps {
-  lessonName: string
-  detectedLabel: string
-  accuracy: number
-  matchCount: number
   onClose: () => void
 }
 
-export default function CongratsPopup({
-  lessonName,
-  detectedLabel,
-  accuracy,
-  matchCount,
-  onClose,
-}: CongratsPopupProps) {
+export default function CongratsPopup({ onClose }: CongratsPopupProps) {
   const [animate, setAnimate] = useState(false)
 
   useEffect(() => {
@@ -47,34 +37,7 @@ export default function CongratsPopup({
 
         {/* Title */}
         <h2 className="text-center text-2xl font-bold text-green-500 mb-2">EXCELLENT!</h2>
-        <p className="text-center text-muted-foreground mb-6">Sign detected successfully!</p>
-
-        {/* Stats */}
-        <div className="space-y-4 mb-6 bg-muted/50 p-4 rounded-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Lesson:</span>
-            <span className="font-bold text-foreground">{lessonName}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Detected:</span>
-            <span className="font-bold text-green-500">{detectedLabel.toUpperCase()}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Accuracy:</span>
-            <span className="font-bold text-foreground">{accuracy}%</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Total Matches:</span>
-            <span className="font-bold text-primary">{matchCount}</span>
-          </div>
-        </div>
-
-        {/* Animation */}
-        <div className="flex justify-center gap-2 mb-6">
-          <Sparkles className="h-5 w-5 text-yellow-400 animate-bounce" />
-          <Sparkles className="h-5 w-5 text-yellow-400 animate-bounce" style={{ animationDelay: "0.1s" }} />
-          <Sparkles className="h-5 w-5 text-yellow-400 animate-bounce" style={{ animationDelay: "0.2s" }} />
-        </div>
+        <p className="text-center text-muted-foreground">Great job! Keep practicing!</p>
 
         {/* Close Button */}
         <Button onClick={onClose} className="w-full" size="lg">

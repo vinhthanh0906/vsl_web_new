@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from verify import hash_password, verify_password
 
 # JWT setup
-SECRET_KEY = "supersecretkey"  # ❗ Change this in production
+SECRET_KEY = "supersecretkey" 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
