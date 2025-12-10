@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { useState, useEffect } from "react"
+import sendEvent from "@/lib/analytics"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import CameraFeed from "@/components/camera-feed"
@@ -32,6 +33,25 @@ export default function PracticePage() {
   }
 
   useEffect(() => {
+    // send an "enter_lesson" event when the page loads with lesson id
+    if (lesson) {
+      // try to get user id from local storage if available
+      let userId: number | null = null
+      try {
+        const u = localStorage.getItem("user")
+        if (u) {
+          const parsed = JSON.parse(u)
+          if (parsed && parsed.id) userId = Number(parsed.id)
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // send enter event — backend expects lesson_id in the payload; store as number if possible
+      const lessonId = Number(lesson) || lesson
+      sendEvent({ user_id: userId, event_type: "enter_lesson", lesson_id: lessonId, detail: String(lessonId) })
+    }
+
     if (detections.length === 0) return
 
     const matchedDetection = detections.find((detection) => detection.class.toLowerCase() === lesson?.toLowerCase())

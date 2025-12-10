@@ -1,5 +1,5 @@
 from passlib.context import CryptContext
-from jose import jwt
+from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
@@ -19,3 +19,8 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
+def decode_token(token: str):
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except JWTError:
+        return None

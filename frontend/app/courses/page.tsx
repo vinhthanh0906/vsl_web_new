@@ -20,7 +20,7 @@ export default function CoursesPage() {
       description: "Learn Vietnamese hand signs for each letter A-Z",
       lessonType: "letter",
       lessons: [
-        { id: "a", name: "A", videoUrl: "https://eflvwplvmzlychlhuzsf.supabase.co/storage/v1/object/public/vsl_videos/videos/a.jpg" },
+        { id: "a", name: "A", videoUrl: "https://eflvwplvmzlychlhuzsf.supabase.co/storage/v1/object/public/vsl_videos/alphabet/a.jpg" },
         { id: "b", name: "B", videoUrl: "https://eflvwplvmzlychlhuzsf.supabase.co/storage/v1/object/public/vsl_videos/videos/images.jfif" },
         { id: "c", name: "C", videoUrl: "https://eflvwplvmzlychlhuzsf.supabase.co/storage/v1/object/public/vsl_videos/alphabet/C.webp" },
         { id: "d", name: "D", videoUrl: "https://placeholder.svg?height=400&width=600&query=sign-language-d" },
