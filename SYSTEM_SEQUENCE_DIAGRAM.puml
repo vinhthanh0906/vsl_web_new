@@ -1,0 +1,82 @@
+@startuml VSL_System_Sequence
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 70
+
+actor "User" as User
+actor "Admin" as Admin
+participant "Frontend\n(Next.js / Streamlit)" as Frontend
+participant "Backend API\n(FastAPI)" as Backend
+database "Database\n(PostgreSQL)" as DB
+participant "Media Storage\n(Supabase)" as Storage
+participant "YOLO Model\n(Ultralytics)" as YOLO
+
+== User Journey ==
+User -> Frontend: Open app / navigate (Home, Courses, Practice, Progress)
+Frontend -> Backend: GET /auth/profile, /courses, /progress
+Backend -> DB: Query users, lessons, progress
+DB --> Backend: Results
+Backend --> Frontend: JSON payloads
+Frontend --> User: Render UI
+
+== Authentication ==
+User -> Frontend: Submit credentials (register/login)
+Frontend -> Backend: POST /auth/register or /auth/login
+Backend -> DB: Validate user & password
+DB --> Backend: User record / status
+Backend --> Frontend: Token + user info
+Frontend -> Frontend: Store token/session
+
+== Practice with YOLO ==
+User -> Frontend: Start detection session
+Frontend -> YOLO: Capture frame (via backend `/yolo/predict`)
+Frontend -> Backend: POST frame data (base64)
+Backend -> YOLO: Run inference
+YOLO --> Backend: Detection results (class, confidence, bbox)
+Backend --> Frontend: JSON detections
+Frontend -> Frontend: Compare target lesson
+Frontend --> User: Show feedback / stats
+
+opt Save progress
+    Frontend -> Backend: POST /progress/update
+    Backend -> DB: Upsert user progress
+    DB --> Backend: Success
+    Backend --> Frontend: Updated metrics
+end
+
+== Media Consumption ==
+User -> Frontend: Watch reference video/image
+Frontend -> Storage: GET media via signed/public URL
+Storage --> Frontend: Media binary stream
+Frontend --> User: Render video/image
+
+== Admin Content Management ==
+Admin -> Frontend: Open admin dashboard
+Frontend -> Backend: Authenticate (Bearer token)
+Admin -> Frontend: Create / update course or lesson
+Frontend -> Backend: POST/PUT /admin/courses or /admin/lessons
+Backend -> DB: Persist course/lesson metadata
+DB --> Backend: Confirmation
+
+opt Upload reference media
+    Frontend -> Storage: Upload file (video/image)
+    Storage --> Frontend: Public URL
+    Frontend -> Backend: PATCH lesson with video_url
+    Backend -> DB: Update lesson record
+end
+
+Backend --> Frontend: Operation result
+Frontend --> Admin: Show success/error
+
+== Analytics Retrieval ==
+User -> Frontend: View dashboard
+Frontend -> Backend: GET /analytics/summary
+Backend -> DB: Aggregate detections, accuracy, milestones
+DB --> Backend: Aggregated data
+Backend --> Frontend: Charts data
+Frontend --> User: Render metrics & charts
+
+@enduml
+
+

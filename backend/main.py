@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 import sys
 
 # Add your module paths
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\auth")
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\yolo")
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\monitor")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/auth")
+sys.path.append(r"D/Users/hungcucu/Documents/vsl_web_new/backend/modules")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/yolo")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/monitor")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/courses")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/progress")
 
 
 #Import database and models
@@ -15,6 +17,8 @@ from auth import routes as auth_routes
 from modules import yolo_db 
 from yolo.routes import router as yolo_router
 from monitor import routes as monitor_routes
+from courses.routes import router as courses_router
+from progress.routes import router as progress_router
 import modules.monitor_models  # register monitoring models with SQLAlchemy metadata
 
 
@@ -56,6 +60,8 @@ app.add_middleware(
 app.include_router(auth_routes.router, prefix="/auth", tags=["auth"])
 app.include_router(yolo_router)
 app.include_router(monitor_routes.router)
+app.include_router(courses_router)
+app.include_router(progress_router)
 
 
 

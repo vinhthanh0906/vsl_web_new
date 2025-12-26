@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import ProgressChart from "@/components/progress-chart"
 import AccuracyTrend from "@/components/accuracy-trend"
+import { getAllProgress, isLessonCompleted, getSectionProgress } from "@/lib/progress"
 
 interface User {
   email: string
@@ -40,15 +41,44 @@ export default function ProgressPage() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [timeRange, setTimeRange] = useState<"week" | "month" | "year">("week")
+  const [userProgress, setUserProgress] = useState<any>(null)
+  const [userStats, setUserStats] = useState<any>(null)
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    } else {
-      router.push("/auth/login")
+    const fetchUserProgress = async () => {
+      const storedUser = localStorage.getItem("user")
+      if (!storedUser) {
+        router.push("/auth/login")
+        return
+      }
+      
+      try {
+        const userData = JSON.parse(storedUser)
+        setUser(userData)
+        
+        if (userData.id) {
+          // Fetch progress from backend
+          const progressRes = await fetch(`http://127.0.0.1:8000/progress/user/${userData.id}`)
+          if (progressRes.ok) {
+            const progressData = await progressRes.json()
+            setUserProgress(progressData)
+          }
+          
+          // Fetch user stats
+          const statsRes = await fetch(`http://127.0.0.1:8000/progress/user/${userData.id}/stats`)
+          if (statsRes.ok) {
+            const statsData = await statsRes.json()
+            setUserStats(statsData)
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching progress:", error)
+      } finally {
+        setIsLoading(false)
+      }
     }
-    setIsLoading(false)
+    
+    fetchUserProgress()
   }, [router])
 
   if (isLoading) {
@@ -59,68 +89,12 @@ export default function ProgressPage() {
     )
   }
 
-  if (!user) {
+  if (!user || !userProgress) {
     return null
   }
 
-  const courseProgress: CourseProgress[] = [
-    {
-      id: "alphabet",
-      name: "Vietnamese Alphabet",
-      lessons: [
-        { id: "a", name: "A", completed: true },
-        { id: "b", name: "B", completed: true },
-        { id: "c", name: "C", completed: true },
-        { id: "d", name: "D", completed: false },
-        { id: "e", name: "E", completed: false },
-        { id: "f", name: "F", completed: false },
-        { id: "g", name: "G", completed: false },
-        { id: "h", name: "H", completed: false },
-        { id: "i", name: "I", completed: false },
-        { id: "j", name: "J", completed: false },
-      ],
-      progress: 30,
-    },
-    {
-      id: "greetings",
-      name: "Greeting & Basic Conversation",
-      lessons: [
-        { id: "hello", name: "Hello", completed: true },
-        { id: "goodbye", name: "Goodbye", completed: true },
-        { id: "thankyou", name: "Thank You", completed: true },
-        { id: "please", name: "Please", completed: true },
-        { id: "yes", name: "Yes", completed: false },
-        { id: "no", name: "No", completed: false },
-      ],
-      progress: 67,
-    },
-    {
-      id: "verbs",
-      name: "Basic Verbs",
-      lessons: [
-        { id: "go", name: "Go", completed: true },
-        { id: "come", name: "Come", completed: true },
-        { id: "eat", name: "Eat", completed: false },
-        { id: "sleep", name: "Sleep", completed: false },
-        { id: "work", name: "Work", completed: false },
-        { id: "play", name: "Play", completed: false },
-      ],
-      progress: 33,
-    },
-    {
-      id: "nouns",
-      name: "Common Nouns",
-      lessons: [
-        { id: "family", name: "Family", completed: true },
-        { id: "food", name: "Food", completed: false },
-        { id: "house", name: "House", completed: false },
-        { id: "school", name: "School", completed: false },
-        { id: "work", name: "Work", completed: false },
-        { id: "friend", name: "Friend", completed: false },
-      ],
-      progress: 17,
-    },
-  ]
+  // Use data from backend API
+  const courseProgress: CourseProgress[] = userProgress.courses || []
 
   const consistencyData = [
     { day: "Mon", sessions: 5 },
@@ -133,83 +107,85 @@ export default function ProgressPage() {
   ]
 
   const dailyStats: DailyStats[] = [
-    { date: "Mon", detections: 245, accuracy: 92 },
-    { date: "Tue", detections: 312, accuracy: 94 },
-    { date: "Wed", detections: 198, accuracy: 89 },
-    { date: "Thu", detections: 421, accuracy: 96 },
-    { date: "Fri", detections: 367, accuracy: 93 },
-    { date: "Sat", detections: 289, accuracy: 95 },
-    { date: "Sun", detections: 156, accuracy: 91 },
+    { date: "Mon", detections: 0, accuracy: 0 },
+    { date: "Tue", detections: 0, accuracy: 0 },
+    { date: "Wed", detections: 0, accuracy: 0 },
+    { date: "Thu", detections: 0, accuracy: 0 },
+    { date: "Fri", detections: 0, accuracy: 0 },
+    { date: "Sat", detections: 0, accuracy: 0 },
+    { date: "Sun", detections: 0, accuracy: 0 },
   ]
 
-  const totalDetections = dailyStats.reduce((sum, day) => sum + day.detections, 0)
-  const avgAccuracy = Math.round(dailyStats.reduce((sum, day) => sum + day.accuracy, 0) / dailyStats.length)
-  const totalLessonsCompleted = courseProgress.reduce(
-    (sum, course) => sum + course.lessons.filter((l) => l.completed).length,
-    0,
-  )
-  const totalLessons = courseProgress.reduce((sum, course) => sum + course.lessons.length, 0)
+  // Use real stats from API
+  const totalDetections = userStats?.total_detections || 0
+  const avgAccuracy = userStats?.average_accuracy || 0
+  const totalLessonsCompleted = userStats?.completed_lessons || 0
+  const totalLessons = userStats?.total_lessons || 0
 
   const maxSessions = Math.max(...consistencyData.map((d) => d.sessions))
 
   return (
-    <main className="min-h-screen bg-background">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-4xl font-bold text-foreground mb-2">Progress Tracking</h1>
-            <p className="text-muted-foreground">Monitor your learning journey and achievements</p>
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent mb-3">
+              Progress Tracking
+            </h1>
+            <p className="text-gray-600">Monitor your learning journey and achievements</p>
           </div>
           <Link href="/profile">
-            <Button variant="outline">Back to Profile</Button>
+            <Button variant="outline" className="border-2 border-blue-200 hover:border-blue-400 hover:bg-blue-50">
+              Back to Profile
+            </Button>
           </Link>
         </div>
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-2">Total Detections</p>
-            <p className="text-3xl font-bold text-foreground">{totalDetections.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground mt-2">This week</p>
+          <Card className="p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
+            <p className="text-sm text-blue-100 mb-2">Total Detections</p>
+            <p className="text-4xl font-bold">{totalDetections.toLocaleString()}</p>
+            <p className="text-xs text-blue-100 mt-2">This week</p>
           </Card>
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-2">Average Accuracy</p>
-            <p className="text-3xl font-bold text-foreground">{avgAccuracy}%</p>
-            <p className="text-xs text-muted-foreground mt-2">Across all sessions</p>
+          <Card className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
+            <p className="text-sm text-green-100 mb-2">Average Accuracy</p>
+            <p className="text-4xl font-bold">{avgAccuracy}%</p>
+            <p className="text-xs text-green-100 mt-2">Across all sessions</p>
           </Card>
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-2">Lessons Completed</p>
-            <p className="text-3xl font-bold text-foreground">
+          <Card className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
+            <p className="text-sm text-purple-100 mb-2">Lessons Completed</p>
+            <p className="text-4xl font-bold">
               {totalLessonsCompleted}/{totalLessons}
             </p>
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-xs text-purple-100 mt-2">
               {Math.round((totalLessonsCompleted / totalLessons) * 100)}% complete
             </p>
           </Card>
-          <Card className="p-6">
-            <p className="text-sm text-muted-foreground mb-2">Practice Hours</p>
-            <p className="text-3xl font-bold text-foreground">24.5</p>
-            <p className="text-xs text-muted-foreground mt-2">Total time invested</p>
+          <Card className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
+            <p className="text-sm text-orange-100 mb-2">Practice Hours</p>
+            <p className="text-4xl font-bold">24.5</p>
+            <p className="text-xs text-orange-100 mt-2">Total time invested</p>
           </Card>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Detection Trends</h2>
+          <Card className="p-6 bg-white shadow-lg border-2 border-gray-200">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Detection Trends</h2>
             <ProgressChart data={dailyStats} />
           </Card>
-          <Card className="p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">Accuracy Over Time</h2>
+          <Card className="p-6 bg-white shadow-lg border-2 border-gray-200">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Accuracy Over Time</h2>
             <AccuracyTrend data={dailyStats} />
           </Card>
         </div>
 
-        <Card className="p-6 mb-8">
+        <Card className="p-6 mb-8 bg-white shadow-lg border-2 border-gray-200">
           <div className="mb-6">
-            <h2 className="text-lg font-semibold text-foreground">Course Progress</h2>
-            <p className="text-sm text-muted-foreground mt-2">Track your completion for each course and lesson</p>
+            <h2 className="text-2xl font-bold text-gray-800">Course Progress</h2>
+            <p className="text-sm text-gray-600 mt-2">Track your completion for each course and lesson</p>
           </div>
 
           <Tabs defaultValue={courseProgress[0].id} className="w-full">
@@ -227,41 +203,54 @@ export default function ProgressPage() {
             {courseProgress.map((course) => (
               <TabsContent key={course.id} value={course.id} className="mt-6 space-y-6">
                 {/* Course Overall Progress */}
-                <div>
+                <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200">
                   <div className="flex justify-between items-center mb-3">
                     <div>
-                      <h3 className="font-semibold text-foreground text-lg">{course.name}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
+                      <h3 className="font-bold text-gray-800 text-xl">{course.name}</h3>
+                      <p className="text-sm text-gray-600 mt-1">
                         {course.lessons.filter((l) => l.completed).length} of {course.lessons.length} lessons completed
                       </p>
                     </div>
-                    <Badge variant={course.progress === 100 ? "default" : "outline"}>{course.progress}%</Badge>
+                    <Badge className={course.progress === 100 ? "bg-green-500 text-white" : "bg-blue-500 text-white"}>
+                      {course.progress}%
+                    </Badge>
                   </div>
-                  <Progress value={course.progress} className="h-3" />
+                  <Progress value={course.progress} className="h-4" />
                 </div>
 
                 {/* Individual Lesson Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {course.lessons.map((lesson) => (
                     <div
                       key={lesson.id}
-                      className={`p-4 rounded-lg border-2 transition-all ${
+                      className={`p-5 rounded-xl border-2 transition-all hover:shadow-lg ${
                         lesson.completed
-                          ? "border-green-500 bg-green-500/10"
-                          : "border-border bg-muted/50 hover:border-primary"
+                          ? "bg-gradient-to-br from-green-50 to-green-100 border-green-400"
+                          : "bg-white border-gray-200 hover:border-blue-400"
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-foreground">{lesson.name}</span>
-                        {lesson.completed && <Badge className="bg-green-500">✓ Done</Badge>}
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="font-bold text-gray-800 text-lg">{lesson.name}</span>
+                        {lesson.completed && (
+                          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                            <span className="text-white font-bold text-lg">✓</span>
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        {lesson.completed ? "Lesson completed successfully" : "Not started yet"}
+                      <p className="text-xs text-gray-600 mb-4">
+                        {lesson.completed ? "Lesson completed successfully!" : "Ready to start"}
                       </p>
                       {!lesson.completed && (
                         <Link href={`/practice?section=${course.id}&lesson=${lesson.id}`}>
-                          <Button size="sm" className="w-full">
-                            Start Lesson
+                          <Button size="sm" className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white">
+                            Start Lesson →
+                          </Button>
+                        </Link>
+                      )}
+                      {lesson.completed && (
+                        <Link href={`/practice?section=${course.id}&lesson=${lesson.id}`}>
+                          <Button size="sm" variant="outline" className="w-full border-2 border-green-400 hover:bg-green-50 text-green-700">
+                            Practice Again
                           </Button>
                         </Link>
                       )}

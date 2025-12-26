@@ -3,7 +3,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 from sqlalchemy.sql import func
 
 
-sys.path.append("D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
+sys.path.append("/Users/hungcucu/Documents/vsl_web_new/backend/modules")
 from modules.database import Base
 
 

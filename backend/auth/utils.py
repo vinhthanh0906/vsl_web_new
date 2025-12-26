@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
 
-from verify import hash_password, verify_password
+from auth.verify import hash_password, verify_password
 
 # JWT setup
 SECRET_KEY = "supersecretkey" 

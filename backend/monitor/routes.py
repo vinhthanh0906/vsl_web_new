@@ -11,7 +11,7 @@ from sqlalchemy import func, text
 from jose import jwt, JWTError
 
 # ensure modules package is importable
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/modules")
 from modules.database import SessionLocal
 from modules.monitor_models import ActivityLog, LessonCompletion
 from modules.create_table import User
@@ -66,57 +66,78 @@ def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(auth_s
         admin.username = "static-admin"
         return admin
 
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No token provided")
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    except JWTError as e:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {str(e)}")
+    
+    # Check ADMIN_USERS env var
     if username in ADMIN_USERS:
         admin = SimpleNamespace()
         admin.is_admin = 1
         admin.username = username
         return admin
 
+    # Check admins table
     try:
-        row = db.execute(text("SELECT * FROM admins WHERE username = :u OR email = :u LIMIT 1"), {"u": username}).fetchone()
+        row = db.execute(
+            text("SELECT id, username, email FROM users WHERE username = :u OR email = :u LIMIT 1"),
+            {"u": username}
+        ).mappings().first()
+
         if row:
             admin = SimpleNamespace()
             admin.is_admin = 1
-            # provide minimal identifying info
             admin.username = row.get("username") or row.get("email") or username
-            admin.id = row.get("id") if "id" in row.keys() else None
+            admin.id = row.get("id")
             return admin
-    except Exception:
-        # If the admins table does not exist or query fails, continue to check users table
-        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Admins query failed: {str(e)}")
 
-    # Fall back to checking the users table for an authenticated user (but not granting admin by default)
     user = db.query(User).filter(User.username == username).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+    if user and getattr(user, "is_admin", False):
+        admin = SimpleNamespace()
+        admin.is_admin = 1
+        admin.username = username
+        return admin
 
-    # If we reach here, the JWT is valid and the user exists but isn't an admin (admins are via ADMIN_USERS or admins table)
     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required")
 
 
 
-
 @router.get("/admin/users")
-def admin_list_users(db: Session = Depends(get_db), _admin=Depends(get_current_admin)):
-    """Return list of users for admin dashboard."""
-    
-    users = db.query(User).all()
-    
-    result = []
-    for u in users:
-        result.append({
-            "id": u.id,
-            "name": getattr(u, "username", None) or getattr(u, "name", ""),
-            "email": getattr(u, "email", ""),
-            "password": getattr(u, "hashed_password", ""),  # if you want to show hash
-        }) 
-    return result
+def admin_list_users(
+    db: Session = Depends(get_db),
+    _admin=Depends(get_current_admin)
+):
+    """Return list of non-admin users (including hashed password)."""
+    try:
+        users = (
+            db.query(User)
+            .filter(User.is_admin.isnot(True))  #
+            .all()
+        )
+
+        return [
+            {
+                "id": u.id,
+                "name": getattr(u, "username", None) or getattr(u, "name", ""),
+                "email": getattr(u, "email", ""),
+                "hashed_password": u.hashed_password,  # ✅ explicitly include
+            }
+            for u in users
+        ]
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error fetching users: {str(e)}"
+        )
+
 
 

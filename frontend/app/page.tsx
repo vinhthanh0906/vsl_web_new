@@ -37,7 +37,7 @@ export default function HomePage() {
             <div className="relative h-96 hidden lg:block">
               <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-lg border border-primary/30"></div>
               <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-6xl opacity-20">🤟</div>
+                <div className="text-2xl font-semibold text-foreground/70">Interactive Practice</div>
               </div>
             </div>
           </div>
@@ -52,7 +52,6 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Feature 1 */}
             <Card className="p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-4">📚</div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Structured Lessons</h3>
               <p className="text-muted-foreground">
                 Learn from greeting to advanced conversations with guided lessons.
@@ -61,21 +60,18 @@ export default function HomePage() {
 
             {/* Feature 2 */}
             <Card className="p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-4">🎥</div>
               <h3 className="text-lg font-semibold text-foreground mb-2">AI Recognition</h3>
               <p className="text-muted-foreground">Practice with real-time hand sign recognition powered by YOLO.</p>
             </Card>
 
             {/* Feature 3 */}
             <Card className="p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-4">📊</div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Track Progress</h3>
               <p className="text-muted-foreground">Monitor your learning journey with detailed progress analytics.</p>
             </Card>
 
             {/* Feature 4 */}
             <Card className="p-6 hover:shadow-lg transition-shadow">
-              <div className="text-4xl mb-4">🎯</div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Interactive Practice</h3>
               <p className="text-muted-foreground">Engage with interactive exercises and real-time feedback.</p>
             </Card>
@@ -92,7 +88,6 @@ export default function HomePage() {
             {/* Courses Link */}
             <Link href="/courses">
               <Card className="p-8 hover:shadow-lg transition-all cursor-pointer hover:border-primary">
-                <div className="text-5xl mb-4">📖</div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">Courses</h3>
                 <p className="text-muted-foreground mb-4">Browse our comprehensive course catalog</p>
                 <Button variant="ghost" className="w-full justify-start">
@@ -104,7 +99,6 @@ export default function HomePage() {
             {/* Practice Link */}
             <Link href="/practice">
               <Card className="p-8 hover:shadow-lg transition-all cursor-pointer hover:border-primary">
-                <div className="text-5xl mb-4">🎮</div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">Practice</h3>
                 <p className="text-muted-foreground mb-4">Train with real-time AI recognition</p>
                 <Button variant="ghost" className="w-full justify-start">
@@ -116,7 +110,6 @@ export default function HomePage() {
             {/* Progress Link */}
             <Link href="/progress">
               <Card className="p-8 hover:shadow-lg transition-all cursor-pointer hover:border-primary">
-                <div className="text-5xl mb-4">📈</div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">Progress</h3>
                 <p className="text-muted-foreground mb-4">Track your learning achievements</p>
                 <Button variant="ghost" className="w-full justify-start">

@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 
 # Load environment variables from .env
-load_dotenv(dotenv_path="D:/WORK/Python/web/web_app_vsl/.env")
+load_dotenv(dotenv_path="/Users/hungcucu/Documents/vsl_web_new/.env")
 
 # Get DB URL
 DATABASE_URL = os.getenv("DB_URL")

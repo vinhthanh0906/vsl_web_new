@@ -1,0 +1,202 @@
+@startuml VSL_Sequence_Diagrams
+
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 60
+
+' ==========================================
+' 1. USER REGISTRATION & LOGIN FLOW
+' ==========================================
+title User Registration and Login Flow
+
+actor User
+participant "Frontend\n(Next.js)" as Frontend
+participant "Backend API\n(FastAPI)" as Backend
+database "Database\n(PostgreSQL)" as DB
+
+== Registration ==
+User -> Frontend: Fill registration form
+Frontend -> Backend: POST /auth/register\n{username, email, password}
+Backend -> DB: Check if user exists
+DB --> Backend: User not found
+Backend -> Backend: Hash password
+Backend -> DB: Create new user
+DB --> Backend: User created
+Backend --> Frontend: UserResponse {id, username, email}
+Frontend -> Frontend: Store user in localStorage
+Frontend --> User: Redirect to profile
+
+== Login ==
+User -> Frontend: Enter credentials
+Frontend -> Backend: POST /auth/login\n{username, password}
+Backend -> DB: Query user by username
+DB --> Backend: User data
+Backend -> Backend: Verify password
+Backend -> Backend: Generate JWT token
+Backend --> Frontend: {access_token, user, role}
+Frontend -> Frontend: Store token & user
+Frontend --> User: Redirect to dashboard
+
+@enduml
+
+@startuml User_Practice_Flow
+title User Practice Session with Real-time Recognition
+
+actor User
+participant "Frontend\n(Next.js)" as Frontend
+participant "Camera Feed\nComponent" as Camera
+participant "Backend API\n(FastAPI)" as Backend
+participant "YOLO Model" as YOLO
+database "Database\n(PostgreSQL)" as DB
+
+User -> Frontend: Navigate to Practice page
+Frontend -> Frontend: Load lesson details
+Frontend --> User: Display practice interface
+
+User -> Frontend: Click "Start Detection"
+Frontend -> Camera: Request camera access
+Camera --> Frontend: Camera stream active
+
+loop Every frame (e.g., 30fps)
+    Camera -> Camera: Capture frame
+    Camera -> Frontend: Send frame data
+    Frontend -> Frontend: Convert to base64
+    Frontend -> Backend: POST /yolo/predict\n{image: base64}
+    
+    Backend -> Backend: Decode base64 image
+    Backend -> YOLO: Process image
+    YOLO -> YOLO: Run inference
+    YOLO --> Backend: Detection results\n{class, confidence, bbox}
+    
+    Backend -> Backend: Format detections
+    Backend --> Frontend: {detections: [...]}
+    
+    Frontend -> Frontend: Check if target sign detected
+    alt Target sign detected
+        Frontend -> Frontend: Show congratulations popup
+        Frontend -> Frontend: Increment match counter
+        Frontend --> User: Display success message
+    else Other signs detected
+        Frontend --> User: Display detection stats
+    end
+    
+    opt Save progress
+        Frontend -> Backend: POST /progress/update\n{lesson_id, accuracy}
+        Backend -> DB: Update user progress
+        DB --> Backend: Progress saved
+    end
+end
+
+User -> Frontend: Click "Stop Detection"
+Frontend -> Camera: Stop camera stream
+Camera --> Frontend: Camera stopped
+Frontend --> User: Show final statistics
+
+@enduml
+
+@startuml Admin_Add_Lesson
+title Admin Adding Lesson and Reference Video
+
+actor Admin
+participant "Admin Frontend\n(Next.js)" as AdminUI
+participant "Backend API\n(FastAPI)" as Backend
+participant "File Storage\n(Supabase)" as Storage
+database "Database\n(PostgreSQL)" as DB
+
+== Admin Login ==
+Admin -> AdminUI: Login with admin credentials
+AdminUI -> Backend: POST /auth/login\n{username, password}
+Backend -> DB: Verify admin role
+DB --> Backend: Admin user confirmed
+Backend --> AdminUI: {access_token, role: "admin"}
+
+== Create Course (if needed) ==
+Admin -> AdminUI: Navigate to admin panel
+Admin -> AdminUI: Fill course form
+AdminUI -> Backend: POST /admin/courses\n{title, description, level, lesson_type}\nAuthorization: Bearer token
+Backend -> Backend: Verify admin token
+Backend -> DB: Create course
+DB --> Backend: Course created
+Backend --> AdminUI: CourseResponse
+
+== Add Lesson with Reference Video ==
+Admin -> AdminUI: Select course
+Admin -> AdminUI: Fill lesson form\n{name, upload video}
+AdminUI -> AdminUI: Convert video to base64/FormData
+AdminUI -> Storage: Upload video file
+Storage --> AdminUI: Video URL
+
+AdminUI -> Backend: POST /admin/lessons\n{course_id, name, video_url, order_index}\nAuthorization: Bearer token
+Backend -> Backend: Verify admin token
+Backend -> DB: Create lesson record
+DB --> Backend: Lesson created
+Backend --> AdminUI: LessonResponse
+
+AdminUI --> Admin: Lesson added successfully
+
+@enduml
+
+@startuml User_Browse_Courses
+title User Browsing Courses and Lessons
+
+actor User
+participant "Frontend\n(Next.js)" as Frontend
+participant "Backend API\n(FastAPI)" as Backend
+database "Database\n(PostgreSQL)" as DB
+participant "Storage\n(Supabase)" as Storage
+
+User -> Frontend: Navigate to Courses page
+Frontend -> Backend: GET /courses\nAuthorization: Bearer token
+Backend -> Backend: Verify token
+Backend -> DB: Query all courses
+DB --> Backend: Courses list
+Backend --> Frontend: [{id, title, level, ...}]
+
+Frontend --> User: Display course sections
+
+User -> Frontend: Click on course section
+Frontend -> Backend: GET /courses/{course_id}/lessons\nAuthorization: Bearer token
+Backend -> DB: Query lessons for course
+DB --> Backend: Lessons list
+Backend --> Frontend: [{id, name, video_url, ...}]
+
+Frontend --> User: Display lessons grid
+
+User -> Frontend: Click "Watch Reference"
+Frontend -> Storage: GET video_url
+Storage --> Frontend: Video/image file
+Frontend --> User: Display reference video
+
+User -> Frontend: Click "Start Lesson"
+Frontend -> Frontend: Navigate to Practice page\nwith lesson_id parameter
+
+@enduml
+
+@startuml User_View_Progress
+title User Viewing Progress and Statistics
+
+actor User
+participant "Frontend\n(Next.js)" as Frontend
+participant "Backend API\n(FastAPI)" as Backend
+database "Database\n(PostgreSQL)" as DB
+
+User -> Frontend: Navigate to Progress page
+Frontend -> Backend: GET /progress/dashboard\nAuthorization: Bearer token
+Backend -> Backend: Verify token
+Backend -> DB: Query user progress data
+DB --> Backend: Progress data\n{detections, accuracy, lessons_completed}
+Backend --> Frontend: Progress statistics
+
+Frontend -> Backend: GET /progress/courses\nAuthorization: Bearer token
+Backend -> DB: Query course progress
+DB --> Backend: Course progress list
+Backend --> Frontend: [{course_id, progress_percent, lessons}]
+
+Frontend -> Backend: GET /progress/daily-stats\nAuthorization: Bearer token
+Backend -> DB: Query daily statistics
+DB --> Backend: Daily stats
+Backend --> Frontend: [{date, detections, accuracy}]
+
+Frontend --> User: Display progress dashboard\nwith charts and statistics
+
+@enduml

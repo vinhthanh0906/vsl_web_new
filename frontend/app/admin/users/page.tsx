@@ -17,15 +17,35 @@ interface User {
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [searchTerm, setSearchTerm] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // Load REAL users from backend
   useEffect(() => {
     async function load() {
       try {
+        setLoading(true)
+        setError(null)
+        
+        // Check if admin token exists
+        const adminToken = localStorage.getItem("admin_token")
+        if (!adminToken) {
+          setError("Not logged in as admin. Please login at /admin/login")
+          setLoading(false)
+          return
+        }
+        
+        console.log("Fetching users with token:", adminToken.substring(0, 20) + "...")
         const data = await adminGetUsers()
-        setUsers(data)
+        console.log("Users data received:", data)
+        setUsers(Array.isArray(data) ? data : [])
       } catch (error) {
-        console.error(error)
+        console.error("Error loading users:", error)
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+        setError(errorMessage)
+        console.error("Full error:", error)
+      } finally {
+        setLoading(false)
       }
     }
     load()
@@ -56,36 +76,52 @@ export default function UsersPage() {
         />
       </Card>
 
+      {/* Error Message */}
+      {error && (
+        <Card className="p-6 border-red-500/30 bg-red-500/10">
+          <p className="text-red-400">Error: {error}</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Make sure you are logged in as admin and the backend is running.
+          </p>
+        </Card>
+      )}
+
       {/* Users Table */}
       <Card className="p-6 border-primary/30 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="text-left py-3 px-4 font-semibold text-primary">ID</th>
-              <th className="text-left py-3 px-4 font-semibold text-primary">Name</th>
-              <th className="text-left py-3 px-4 font-semibold text-primary">Email</th>
-              <th className="text-left py-3 px-4 font-semibold text-primary">Password (hashed)</th>
-            </tr>
-          </thead>
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">Loading users...</div>
+        ) : (
+          <>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 font-semibold text-primary">ID</th>
+                  <th className="text-left py-3 px-4 font-semibold text-primary">Name</th>
+                  <th className="text-left py-3 px-4 font-semibold text-primary">Email</th>
+                  <th className="text-left py-3 px-4 font-semibold text-primary">Password (hashed)</th>
+                </tr>
+              </thead>
 
-          <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user.id} className="border-b border-border/50 hover:bg-card/50">
-                <td className="py-3 px-4 text-muted-foreground">{user.id}</td>
-                <td className="py-3 px-4 text-foreground">{user.name}</td>
-                <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
-                <td className="py-3 px-4 text-muted-foreground font-mono">
-                  {user.hashed_password}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              <tbody>
+                {filteredUsers.map((user) => (
+                  <tr key={user.id} className="border-b border-border/50 hover:bg-card/50">
+                    <td className="py-3 px-4 text-muted-foreground">{user.id}</td>
+                    <td className="py-3 px-4 text-foreground">{user.name}</td>
+                    <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
+                    <td className="py-3 px-4 text-muted-foreground font-mono text-xs">
+                      {user.hashed_password}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            No users found.
-          </div>
+            {filteredUsers.length === 0 && !loading && (
+              <div className="text-center py-8 text-muted-foreground">
+                No users found.
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

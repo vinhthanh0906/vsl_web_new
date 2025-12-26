@@ -42,6 +42,11 @@ export default function CameraFeed({
         setLoading(true)
         setError(null)
 
+        // Check if mediaDevices is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error("Camera API not supported in this browser. Please use a modern browser or enable HTTPS.")
+        }
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user" },
         })
@@ -172,8 +177,8 @@ export default function CameraFeed({
       )}
 
       <div className="relative aspect-video bg-black">
-        <video ref={videoRef} className="w-full h-full object-cover" playsInline muted />
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+        <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" playsInline muted />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none scale-x-[-1]" />
 
         {showGreenTick && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

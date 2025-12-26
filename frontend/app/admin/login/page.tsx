@@ -9,40 +9,38 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { adminLogin } from "@/lib/api"
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
-
-  // Demo admin credentials
-  const ADMIN_EMAIL = "admin@signlearn.com"
-  const ADMIN_PASSWORD = "admin123"
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
 
-    setTimeout(() => {
-      if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        localStorage.setItem(
-          "adminUser",
-          JSON.stringify({
-            email,
-            name: "Admin",
-            role: "admin",
-            loginTime: new Date().toISOString(),
-          }),
-        )
-        router.push("/admin/dashboard")
-      } else {
-        setError("Invalid admin credentials. Use admin@signlearn.com / admin123")
-      }
+    try {
+      const result = await adminLogin(username, password)
+      // adminLogin already saves the token to localStorage
+      localStorage.setItem(
+        "adminUser",
+        JSON.stringify({
+          username,
+          name: "Admin",
+          role: "admin",
+          loginTime: new Date().toISOString(),
+        }),
+      )
+      router.push("/admin/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Invalid admin credentials")
+    } finally {
       setIsLoading(false)
-    }, 500)
+    }
   }
 
   return (
@@ -62,16 +60,17 @@ export default function AdminLoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-foreground">
-                Admin Email
+              <Label htmlFor="username" className="text-foreground">
+                Admin Username
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 disabled={isLoading}
                 className="bg-card border-border"
+                placeholder="Enter username"
               />
             </div>
 

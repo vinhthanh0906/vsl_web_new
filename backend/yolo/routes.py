@@ -5,7 +5,7 @@ from ultralytics import YOLO
 import cv2, numpy as np, base64
 
 router = APIRouter(prefix="/yolo", tags=["YOLO"])
-model = YOLO(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\yolo\model\v9_n_yolo11.pt")
+model = YOLO(r"/Users/hungcucu/Documents/vsl_web_new/backend/yolo/model/fullalphabet_yolo_v11s.pt")
 
 @router.post("/predict")
 async def predict(request: Request):

@@ -8,8 +8,8 @@ from modules.database import SessionLocal
 from modules.yolo_db import ModelInfo
 from ultralytics import YOLO
 
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\yolo\model")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/modules")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/yolo/model")
 
 
 router = APIRouter(prefix="/models", tags=["models"])

@@ -2,14 +2,14 @@ import sys
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-sys.path.append(r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\modules")
-sys.path.append (r"D:\WORK\Python\web\github_zone\vsl_web_new\backend\monitor")
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/modules")
+sys.path.append (r"/Users/hungcucu/Documents/vsl_web_new/backend/monitor")
 
 from modules.database import SessionLocal
 from modules.create_table import User
-from utils import create_access_token
+from auth.utils import create_access_token
 from modules.schemas import UserCreate, UserLogin, UserResponse
-from verify import hash_password, verify_password
+from auth.verify import hash_password, verify_password
 from monitor.create_table import ActivityLog, LessonCompletion
 
 from sqlalchemy import func, text
@@ -23,59 +23,118 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()
 
 @router.post("/register", response_model=UserResponse)
 def register(user: UserCreate, db: Session = Depends(get_db)):
-    existing_user = db.query(User).filter(User.username == user.username).first() #auth
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Username already exists")
+    try:
+        existing_user = db.query(User).filter(User.username == user.username).first() #auth
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already exists")
 
-    hashed_pw = hash_password(user.password)
-    new_user = User(username=user.username, email=user.email, hashed_password=hashed_pw)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
+        hashed_pw = hash_password(user.password)
+        new_user = User(username=user.username, email=user.email, hashed_password=hashed_pw)
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        return new_user
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post("/login")
 def login(user: UserLogin, db: Session = Depends(get_db)):
-    db_user = db.query(User).filter(User.username == user.username).first() #auth
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
+    try:
+        # Find user by email
+        db_user = db.query(User).filter(User.email == user.email).first()
+        if not db_user:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
+        
+        # Verify password - try hash verification first, fall back to plain text comparison
+        stored_password = db_user.hashed_password
+        password_valid = False
+        
+        try:
+            # Try to verify as hash first
+            password_valid = verify_password(user.password, stored_password)
+        except Exception:
+            # If hash verification fails (e.g., password is stored as plain text), do plain text comparison
+            password_valid = (user.password == stored_password)
+        
+        if not password_valid:
+            raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = create_access_token({"sub": db_user.username})
-    return {"access_token": token, "token_type": "bearer"}
+        token = create_access_token({"sub": db_user.email, "user_id": db_user.id})
+        
+        # Return user data along with token
+        return {
+            "access_token": token, 
+            "token_type": "bearer",
+            "user": {
+                "id": db_user.id,
+                "username": db_user.username,
+                "email": db_user.email
+            }
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 @router.post("/admin/login")
 def admin_login(payload: dict, db: Session = Depends(get_db)):
-    """Authenticate an admin account stored in a separate `admins` table and return a JWT.
-    Expected payload: { "username": "..." } or { "email": "..." }, and "password".
+    """Authenticate an admin account. Checks users table for is_admin=True.
+    Expected payload: { "username": "..." } and "password".
+    Supports both hashed and plain text passwords.
     """
-    identifier = payload.get("username") or payload.get("email")
+    username = payload.get("username")
     password = payload.get("password")
-    if not identifier or not password:
-        raise HTTPException(status_code=400, detail="username/email and password required")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="username and password required")
 
     try:
-        row = db.execute(text("SELECT * FROM admins WHERE username = :u OR email = :u LIMIT 1"), {"u": identifier}).fetchone()
+        # Check users table for admin user
+        db_user = db.query(User).filter(User.username == username).first()
+        if not db_user:
+            raise HTTPException(status_code=401, detail="Invalid admin credentials")
+        
+        # Verify password - try hash verification first, fall back to plain text comparison
+        stored_password = db_user.hashed_password
+        password_valid = False
+        
+        try:
+            # Try to verify as hash first
+            password_valid = verify_password(password, stored_password)
+        except Exception:
+            # If hash verification fails (e.g., password is stored as plain text), do plain text comparison
+            password_valid = (password == stored_password)
+        
+        if not password_valid:
+            raise HTTPException(status_code=401, detail="Invalid admin credentials")
+        
+        # Check if user is admin
+        if not getattr(db_user, 'is_admin', False):
+            raise HTTPException(status_code=403, detail="User does not have admin privileges")
+
+        token = create_access_token({"sub": db_user.username})
+        return {"access_token": token, "token_type": "bearer"}
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Admin lookup failed: {e}")
-
-    if not row:
-        raise HTTPException(status_code=401, detail="Invalid admin credentials")
-
-    mapping = row._mapping if hasattr(row, "_mapping") else dict(row)
-    hashed = mapping.get("hashed_password") or mapping.get("password")
-    if not hashed or not verify_password(password, hashed):
-        raise HTTPException(status_code=401, detail="Invalid admin credentials")
-
-    sub = mapping.get("username") or mapping.get("email") or identifier
-    token = create_access_token({"sub": sub})
-    return {"access_token": token, "token_type": "bearer"}
+        # Rollback on any other database errors
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
 
 # Lesson logging
@@ -91,3 +150,10 @@ def log_event(event: dict, db: Session = Depends(get_db)):
     return {"status":"ok"}
 
 
+
+@router.get("/debug-db")
+def debug_db(db: Session = Depends(get_db)):
+    dbname = db.execute(text("SELECT current_database()")).scalar()
+    user = db.execute(text("SELECT current_user")).scalar()
+    schema = db.execute(text("SELECT current_schema()")).scalar()
+    return {"current_database": dbname, "current_user": user, "current_schema": schema}        

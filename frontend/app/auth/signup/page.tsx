@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { signupUser } from "@/lib/api"; 
 
 export default function SignupPage() {
+  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,6 +22,11 @@ export default function SignupPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    if (!name || !email || !password) {
+      setError("Please fill in all fields");
+      return;
+    }
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -34,56 +41,63 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      // ⬅️ FIX: match FastAPI format (name, email, password)
+      // Register user with backend
       const res = await signupUser(name, email, password);
 
-      // Save token + user for auth
-      localStorage.setItem("token", res.token);
-      localStorage.setItem("user", JSON.stringify(res.user));
+      // Store user data
+      if (res.id) {
+        localStorage.setItem("user", JSON.stringify({
+          id: res.id,
+          username: res.username,
+          email: res.email
+        }));
+      }
 
-      // Redirect user after signup
-      window.location.href = "/profile";
+      // Redirect to login page after successful signup
+      router.push("/auth/login");
     } catch (err: any) {
       setError(err.message || "Failed to register");
-    } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen bg-background flex items-center justify-center px-4">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <Card className="p-8">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">Create Account</h1>
-            <p className="text-muted-foreground">
-              Join us to start learning with YOLO
+        <Card className="p-8 shadow-xl border-2 border-gray-200 bg-white">
+          <div className="mb-8 text-center">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-blue-400 bg-clip-text text-transparent mb-3">
+              Create Account
+            </h1>
+            <p className="text-gray-600">
+              Join us to start learning Vietnamese Sign Language
             </p>
           </div>
 
           {error && (
-            <Alert variant="destructive" className="mb-6">
-              <AlertDescription>{error}</AlertDescription>
+            <Alert variant="destructive" className="mb-6 border-red-300 bg-red-50">
+              <AlertDescription className="text-red-800">{error}</AlertDescription>
             </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* NAME */}
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="text-gray-700 font-medium">Username</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="John Doe"
+                placeholder="johndoe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading}
+                className="border-2 border-gray-200 focus:border-blue-400 h-11"
               />
             </div>
 
             {/* EMAIL */}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
               <Input
                 id="email"
                 type="email"
@@ -91,12 +105,13 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={isLoading}
+                className="border-2 border-gray-200 focus:border-blue-400 h-11"
               />
             </div>
 
             {/* PASSWORD */}
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
               <Input
                 id="password"
                 type="password"
@@ -104,12 +119,13 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
+                className="border-2 border-gray-200 focus:border-blue-400 h-11"
               />
             </div>
 
             {/* CONFIRM PASSWORD */}
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -117,18 +133,24 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 disabled={isLoading}
+                className="border-2 border-gray-200 focus:border-blue-400 h-11"
               />
             </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all" 
+              size="lg" 
+              disabled={isLoading}
+            >
               {isLoading ? "Creating account..." : "Sign Up"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-muted-foreground">
+            <p className="text-gray-600">
               Already have an account?{" "}
-              <Link href="/auth/login" className="text-primary hover:underline font-medium">
+              <Link href="/auth/login" className="text-blue-600 hover:text-blue-700 hover:underline font-semibold">
                 Sign in
               </Link>
             </p>

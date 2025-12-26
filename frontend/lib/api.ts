@@ -75,7 +75,7 @@ export async function predictFrame(imageBlob: Blob) {
 // Admin Login
 // ---------------------------
 export async function adminLogin(identifier: string, password: string) {
-  const res = await fetch(`${API_URL}/admin/login`, {
+  const res = await fetch(`${API_URL}/auth/admin/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -101,20 +101,37 @@ export async function adminLogin(identifier: string, password: string) {
 // ---------------------------
 export async function adminGetUsers() {
   const token = getAdminToken();
-  if (!token) throw new Error("Admin not authenticated");
+  if (!token) throw new Error("Admin not authenticated. Please login again.");
 
-  const res = await fetch(`${API_URL}/admin/users`, {
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${token}`,
-    },
-  });
+  try {
+    const res = await fetch(`${API_URL}/admin/users`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
 
-  const data = await res.json();
+    if (!res.ok) {
+      let errorMessage = "Failed to load users";
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        errorMessage = `Server error: ${res.status} ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
+    }
 
-  if (!res.ok) throw new Error(data.detail || "Failed to load users");
-
-  return data;
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      throw new Error(`Cannot connect to backend at ${API_URL}. Make sure the backend server is running.`);
+    }
+    throw error;
+  }
 }
 
 
