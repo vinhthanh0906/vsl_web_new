@@ -16,7 +16,7 @@ export default function AccuracyTrend({ data }: AccuracyTrendProps) {
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
         <XAxis dataKey="date" stroke="var(--muted-foreground)" />
-        <YAxis stroke="var(--muted-foreground)" domain={[80, 100]} />
+        <YAxis stroke="var(--muted-foreground)" domain={[0, 100]} />
         <Tooltip
           contentStyle={{
             backgroundColor: "var(--card)",

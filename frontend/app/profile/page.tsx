@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { getAllProgress } from "@/lib/progress"
+import { getUserStats } from "@/lib/api"
 
 interface User {
   id: number
@@ -16,24 +16,32 @@ interface User {
   email: string
 }
 
+interface UserStats {
+  user_id: number
+  completed_lessons: number
+  total_lessons: number
+  completion_percentage: number
+  total_detections: number
+  average_accuracy: number
+  enrolled_courses: number
+  completed_courses: number
+}
+
 export default function ProfilePage() {
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [completedLessons, setCompletedLessons] = useState(0)
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
 
   useEffect(() => {
     const storedUser = localStorage.getItem("user")
     if (storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser)
-        if (parsedUser?.email) {
+        if (parsedUser?.email && parsedUser?.id) {
           setUser(parsedUser)
-          
-          // Get completed lessons count
-          const progress = getAllProgress()
-          const completed = progress.filter(p => p.completed).length
-          setCompletedLessons(completed)
+          fetchUserStats(parsedUser.id)
         } else {
           localStorage.removeItem("user")
           localStorage.removeItem("token")
@@ -50,7 +58,44 @@ export default function ProfilePage() {
     setIsLoading(false)
   }, [router])
 
-  const handleLogout = () => {
+  const fetchUserStats = async (userId: number) => {
+    try {
+      setStatsLoading(true)
+      const stats = await getUserStats(userId)
+      setUserStats(stats)
+    } catch (error) {
+      console.error("Error fetching user stats:", error)
+      // Set default values on error
+      setUserStats({
+        user_id: userId,
+        completed_lessons: 0,
+        total_lessons: 0,
+        completion_percentage: 0,
+        total_detections: 0,
+        average_accuracy: 0,
+        enrolled_courses: 0,
+        completed_courses: 0,
+      })
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    // Log logout event before clearing storage
+    const storedUser = localStorage.getItem("user")
+    if (storedUser) {
+      try {
+        const userData = JSON.parse(storedUser)
+        if (userData?.id) {
+          const { logoutUser } = await import("@/lib/api")
+          await logoutUser(userData.id)
+        }
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
     localStorage.removeItem("user")
     localStorage.removeItem("token")
     router.replace("/auth/login")
@@ -130,15 +175,21 @@ export default function ProfilePage() {
               <div className="flex flex-col md:flex-row gap-6 w-full">
                 <Card className="p-6 min-w-[260px] w-full md:w-[340px] bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
                   <p className="text-sm text-blue-100 mb-2">Completed Lessons</p>
-                  <p className="text-4xl font-bold">{completedLessons}</p>
+                  <p className="text-4xl font-bold">
+                    {statsLoading ? "..." : (userStats?.completed_lessons || 0)}
+                  </p>
                   <p className="text-xs text-blue-100 mt-2">Keep it up!</p>
                 </Card>
                 <Card className="p-6 min-w-[260px] w-full md:w-[340px] bg-gradient-to-br from-green-500 to-green-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
                   <p className="text-sm text-green-100 mb-2">Success Rate</p>
                   <p className="text-4xl font-bold">
-                    {completedLessons > 0 ? "100%" : "0%"}
+                    {statsLoading ? "..." : `${Math.round(userStats?.average_accuracy || 0)}%`}
                   </p>
-                  <p className="text-xs text-green-100 mt-2">All detected!</p>
+                  <p className="text-xs text-green-100 mt-2">
+                    {userStats?.average_accuracy && userStats.average_accuracy > 0 
+                      ? `${userStats.average_accuracy.toFixed(1)}% avg accuracy`
+                      : "Start practicing!"}
+                  </p>
                 </Card>
               </div>
 
@@ -176,51 +227,51 @@ export default function ProfilePage() {
                 <TabsContent value="achievements" className="mt-6 space-y-4">
                   <div className="space-y-3">
                     <div className={`p-4 rounded-xl border-2 ${
-                      completedLessons >= 1 
+                      (userStats?.completed_lessons || 0) >= 1 
                         ? "bg-gradient-to-br from-green-50 to-green-100 border-green-400" 
                         : "bg-gray-50 border-gray-200"
                     }`}>
                       <div className="flex items-center gap-3">
-                        <div className="text-3xl">{completedLessons >= 1 ? "" : "🔒"}</div>
+                        <div className="text-3xl">{(userStats?.completed_lessons || 0) >= 1 ? "" : "🔒"}</div>
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-800">First Lesson Complete</h4>
                           <p className="text-sm text-gray-600">Complete your first lesson</p>
                         </div>
-                        {completedLessons >= 1 && (
+                        {(userStats?.completed_lessons || 0) >= 1 && (
                           <Badge className="bg-green-500 text-white">Unlocked!</Badge>
                         )}
                       </div>
                     </div>
                     
                     <div className={`p-4 rounded-xl border-2 ${
-                      completedLessons >= 5 
+                      (userStats?.completed_lessons || 0) >= 5 
                         ? "bg-gradient-to-br from-blue-50 to-blue-100 border-blue-400" 
                         : "bg-gray-50 border-gray-200"
                     }`}>
                       <div className="flex items-center gap-3">
-                        <div className="text-3xl">{completedLessons >= 5 ? "" : ""}</div>
+                        <div className="text-3xl">{(userStats?.completed_lessons || 0) >= 5 ? "" : ""}</div>
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-800">Learning Streak</h4>
                           <p className="text-sm text-gray-600">Complete 5 lessons</p>
                         </div>
-                        {completedLessons >= 5 && (
+                        {(userStats?.completed_lessons || 0) >= 5 && (
                           <Badge className="bg-blue-500 text-white">Unlocked!</Badge>
                         )}
                       </div>
                     </div>
 
                     <div className={`p-4 rounded-xl border-2 ${
-                      completedLessons >= 22 
+                      (userStats?.completed_lessons || 0) >= 22 
                         ? "bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-400" 
                         : "bg-gray-50 border-gray-200"
                     }`}>
                       <div className="flex items-center gap-3">
-                        <div className="text-3xl">{completedLessons >= 22 ? "" : ""}</div>
+                        <div className="text-3xl">{(userStats?.completed_lessons || 0) >= 22 ? "" : ""}</div>
                         <div className="flex-1">
                           <h4 className="font-bold text-gray-800">Alphabet Master</h4>
                           <p className="text-sm text-gray-600">Complete all 22 alphabet lessons</p>
                         </div>
-                        {completedLessons >= 22 && (
+                        {(userStats?.completed_lessons || 0) >= 22 && (
                           <Badge className="bg-yellow-500 text-white">Unlocked!</Badge>
                         )}
                       </div>
@@ -253,11 +304,21 @@ export default function ProfilePage() {
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span className="text-gray-600">Completed Lessons:</span>
-                          <span className="font-medium text-blue-600">{completedLessons}</span>
+                          <span className="font-medium text-blue-600">
+                            {statsLoading ? "..." : (userStats?.completed_lessons || 0)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-600">Total Available:</span>
-                          <span className="font-medium text-gray-800">22 (Alphabet)</span>
+                          <span className="font-medium text-gray-800">
+                            {statsLoading ? "..." : (userStats?.total_lessons || 0)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Average Accuracy:</span>
+                          <span className="font-medium text-green-600">
+                            {statsLoading ? "..." : `${(userStats?.average_accuracy || 0).toFixed(1)}%`}
+                          </span>
                         </div>
                       </div>
                     </div>

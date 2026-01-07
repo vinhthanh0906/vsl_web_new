@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import ProgressChart from "@/components/progress-chart"
 import AccuracyTrend from "@/components/accuracy-trend"
 import { getAllProgress, isLessonCompleted, getSectionProgress } from "@/lib/progress"
+import { getDailyStats, getPracticeConsistency, getTopLessons } from "@/lib/api"
 
 interface User {
   email: string
@@ -43,6 +44,9 @@ export default function ProgressPage() {
   const [timeRange, setTimeRange] = useState<"week" | "month" | "year">("week")
   const [userProgress, setUserProgress] = useState<any>(null)
   const [userStats, setUserStats] = useState<any>(null)
+  const [dailyStats, setDailyStats] = useState<DailyStats[]>([])
+  const [consistencyData, setConsistencyData] = useState<Array<{day: string, sessions: number}>>([])
+  const [topLessons, setTopLessons] = useState<Array<{name: string, count: number, accuracy: number}>>([])
 
   useEffect(() => {
     const fetchUserProgress = async () => {
@@ -70,6 +74,60 @@ export default function ProgressPage() {
             const statsData = await statsRes.json()
             setUserStats(statsData)
           }
+          
+          // Fetch daily stats for charts
+          try {
+            const days = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365
+            const dailyData = await getDailyStats(userData.id, days)
+            setDailyStats(dailyData)
+          } catch (error) {
+            console.error("Error fetching daily stats:", error)
+            // Set default empty data
+            const defaultDays = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365
+            const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            const defaultData: DailyStats[] = []
+            for (let i = 0; i < defaultDays; i++) {
+              const date = new Date()
+              date.setDate(date.getDate() - (defaultDays - 1 - i))
+              defaultData.push({
+                date: dayNames[date.getDay()],
+                detections: 0,
+                accuracy: 0
+              })
+            }
+            setDailyStats(defaultData)
+          }
+          
+          // Fetch practice consistency
+          try {
+            const days = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365
+            const consistencyData = await getPracticeConsistency(userData.id, days)
+            setConsistencyData(consistencyData)
+          } catch (error) {
+            console.error("Error fetching practice consistency:", error)
+            // Set default empty data
+            const defaultDays = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365
+            const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+            const defaultData = []
+            for (let i = 0; i < defaultDays; i++) {
+              const date = new Date()
+              date.setDate(date.getDate() - (defaultDays - 1 - i))
+              defaultData.push({
+                day: dayNames[date.getDay()],
+                sessions: 0
+              })
+            }
+            setConsistencyData(defaultData)
+          }
+          
+          // Fetch top lessons
+          try {
+            const topLessonsData = await getTopLessons(userData.id, 5)
+            setTopLessons(topLessonsData)
+          } catch (error) {
+            console.error("Error fetching top lessons:", error)
+            setTopLessons([])
+          }
         }
       } catch (error) {
         console.error("Error fetching progress:", error)
@@ -79,7 +137,7 @@ export default function ProgressPage() {
     }
     
     fetchUserProgress()
-  }, [router])
+  }, [router, timeRange])
 
   if (isLoading) {
     return (
@@ -96,33 +154,18 @@ export default function ProgressPage() {
   // Use data from backend API
   const courseProgress: CourseProgress[] = userProgress.courses || []
 
-  const consistencyData = [
-    { day: "Mon", sessions: 5 },
-    { day: "Tue", sessions: 3 },
-    { day: "Wed", sessions: 7 },
-    { day: "Thu", sessions: 4 },
-    { day: "Fri", sessions: 6 },
-    { day: "Sat", sessions: 2 },
-    { day: "Sun", sessions: 8 },
-  ]
-
-  const dailyStats: DailyStats[] = [
-    { date: "Mon", detections: 0, accuracy: 0 },
-    { date: "Tue", detections: 0, accuracy: 0 },
-    { date: "Wed", detections: 0, accuracy: 0 },
-    { date: "Thu", detections: 0, accuracy: 0 },
-    { date: "Fri", detections: 0, accuracy: 0 },
-    { date: "Sat", detections: 0, accuracy: 0 },
-    { date: "Sun", detections: 0, accuracy: 0 },
-  ]
+  // dailyStats is now fetched from backend and stored in state
 
   // Use real stats from API
   const totalDetections = userStats?.total_detections || 0
   const avgAccuracy = userStats?.average_accuracy || 0
   const totalLessonsCompleted = userStats?.completed_lessons || 0
   const totalLessons = userStats?.total_lessons || 0
+  const practiceHours = userStats?.practice_hours || 0
 
-  const maxSessions = Math.max(...consistencyData.map((d) => d.sessions))
+  const maxSessions = consistencyData.length > 0 
+    ? Math.max(...consistencyData.map((d) => d.sessions), 1) 
+    : 1
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50">
@@ -165,7 +208,7 @@ export default function ProgressPage() {
           </Card>
           <Card className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white border-none shadow-lg hover:shadow-xl transition-all">
             <p className="text-sm text-orange-100 mb-2">Practice Hours</p>
-            <p className="text-4xl font-bold">24.5</p>
+            <p className="text-4xl font-bold">{practiceHours}</p>
             <p className="text-xs text-orange-100 mt-2">Total time invested</p>
           </Card>
         </div>
@@ -265,7 +308,9 @@ export default function ProgressPage() {
         <Card className="p-6 mb-8">
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-foreground">Practice Consistency</h2>
-            <p className="text-sm text-muted-foreground mt-2">Your practice sessions per day this week</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Your practice sessions per day {timeRange === "week" ? "this week" : timeRange === "month" ? "this month" : "this year"}
+            </p>
           </div>
 
           <div className="flex items-end justify-between gap-2 h-48 p-4 bg-muted/30 rounded-lg">
@@ -308,10 +353,9 @@ export default function ProgressPage() {
 
         {/* Detailed Statistics */}
         <Tabs defaultValue="daily" className="mb-8">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="daily">Daily Stats</TabsTrigger>
-            <TabsTrigger value="objects">Top Objects</TabsTrigger>
-            <TabsTrigger value="milestones">Milestones</TabsTrigger>
+            <TabsTrigger value="objects">Top Lessons</TabsTrigger>
           </TabsList>
 
           <TabsContent value="daily" className="mt-6">
@@ -353,47 +397,25 @@ export default function ProgressPage() {
           <TabsContent value="objects" className="mt-6">
             <Card className="p-6">
               <div className="space-y-4">
-                {[
-                  { name: "Person", count: 1247, accuracy: 96 },
-                  { name: "Car", count: 892, accuracy: 94 },
-                  { name: "Dog", count: 654, accuracy: 91 },
-                  { name: "Cat", count: 523, accuracy: 89 },
-                  { name: "Bicycle", count: 412, accuracy: 92 },
-                ].map((obj, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-4 bg-muted rounded-lg">
-                    <div>
-                      <p className="font-medium text-foreground">{obj.name}</p>
-                      <p className="text-sm text-muted-foreground">{obj.count} detections</p>
+                {topLessons.length > 0 ? (
+                  topLessons.map((lesson, idx) => (
+                    <div key={idx} className="flex justify-between items-center p-4 bg-muted rounded-lg">
+                      <div>
+                        <p className="font-medium text-foreground">{lesson.name}</p>
+                        <p className="text-sm text-muted-foreground">{lesson.count} detections</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-medium text-foreground">{lesson.accuracy}%</p>
+                        <p className="text-xs text-muted-foreground">accuracy</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium text-foreground">{obj.accuracy}%</p>
-                      <p className="text-xs text-muted-foreground">accuracy</p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No practice data available yet.</p>
+                    <p className="text-sm mt-2">Start practicing lessons to see your top lessons here!</p>
                   </div>
-                ))}
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="milestones" className="mt-6">
-            <Card className="p-6">
-              <div className="space-y-4">
-                {[
-                  { title: "First Detection", date: "5 days ago", icon: "🎯" },
-                  { title: "100 Detections", date: "4 days ago", icon: "💯" },
-                  { title: "90% Accuracy", date: "2 days ago", icon: "⭐" },
-                  { title: "1000 Detections", date: "1 day ago", icon: "🚀" },
-                  { title: "Course Completed", date: "Today", icon: "🏆" },
-                ].map((milestone, idx) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-muted rounded-lg">
-                    <div className="text-3xl">{milestone.icon}</div>
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{milestone.title}</p>
-                      <p className="text-sm text-muted-foreground">{milestone.date}</p>
-                    </div>
-                    <Badge>Unlocked</Badge>
-                  </div>
-                ))}
+                )}
               </div>
             </Card>
           </TabsContent>

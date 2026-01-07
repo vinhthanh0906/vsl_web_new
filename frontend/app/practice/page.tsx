@@ -100,7 +100,17 @@ export default function PracticePage() {
                   lesson_id: lesson,
                   accuracy: accuracy
                 })
-              }).catch(err => console.error("Failed to save progress:", err))
+              })
+              .then(async (response) => {
+                if (!response.ok) {
+                  const errorText = await response.text()
+                  console.error("Failed to save progress:", response.status, errorText)
+                } else {
+                  const data = await response.json()
+                  console.log("Progress saved successfully:", data)
+                }
+              })
+              .catch(err => console.error("Failed to save progress:", err))
             }
           }
         } catch (err) {

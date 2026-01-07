@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import {
   LineChart,
@@ -18,46 +19,88 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import {
+  getAdminActivityMetrics,
+  getAdminHourlyActivity,
+  getAdminDailyActivityStats,
+  getAdminCourseUsage,
+  getAdminRecentActivity,
+} from "@/lib/api"
 
-// Mock activity data
-const hourlyActivity = [
-  { hour: "00:00", logins: 12, practices: 45, lessons: 28 },
-  { hour: "04:00", logins: 8, practices: 32, lessons: 18 },
-  { hour: "08:00", logins: 45, practices: 128, lessons: 92 },
-  { hour: "12:00", logins: 95, practices: 285, lessons: 210 },
-  { hour: "16:00", logins: 78, practices: 198, lessons: 145 },
-  { hour: "20:00", logins: 112, practices: 342, lessons: 256 },
-]
+interface ActivityMetrics {
+  total_sessions: number
+  avg_duration_minutes: number
+  lessons_completed: number
+  practice_hours: number
+}
 
-const dailyStats = [
-  { day: "Mon", users: 285, sessions: 342, completions: 156 },
-  { day: "Tue", users: 301, sessions: 356, completions: 168 },
-  { day: "Wed", users: 298, sessions: 348, completions: 164 },
-  { day: "Thu", users: 315, sessions: 375, completions: 176 },
-  { day: "Fri", users: 328, sessions: 392, completions: 184 },
-  { day: "Sat", users: 275, sessions: 298, completions: 142 },
-  { day: "Sun", users: 242, sessions: 256, completions: 118 },
-]
+interface HourlyActivity {
+  hour: string
+  logins: number
+  practices: number
+  lessons: number
+}
 
-const courseUsage = [
-  { name: "Alphabet", value: 45 },
-  { name: "Greetings", value: 28 },
-  { name: "Verbs", value: 18 },
-  { name: "Nouns", value: 9 },
-]
+interface DailyStats {
+  day: string
+  users: number
+  sessions: number
+  completions: number
+}
+
+interface CourseUsage {
+  name: string
+  value: number
+}
+
+interface RecentActivity {
+  id: string | number
+  user: string
+  action: string
+  details: string
+  time: string
+}
 
 const chartColors = ["#FF6B35", "#00D9FF", "#FF8C42", "#A23B72"]
 
-const recentActivity = [
-  { id: 1, user: "john_doe", action: "Completed Lesson", details: "Letter A - Vietnamese Alphabet", time: "2 min ago" },
-  { id: 2, user: "jane_smith", action: "Started Practice", details: "Hello Sign - Greeting", time: "5 min ago" },
-  { id: 3, user: "mike_j", action: "Completed Exercise", details: "Conversation Quiz", time: "12 min ago" },
-  { id: 4, user: "sarah_l", action: "Logged In", details: "From IP: 192.168.1.1", time: "18 min ago" },
-  { id: 5, user: "alex_k", action: "Completed Course", details: "Vietnamese Alphabet", time: "25 min ago" },
-  { id: 6, user: "emma_d", action: "Started Practice", details: "Basic Verbs", time: "35 min ago" },
-]
-
 export default function ActivityPage() {
+  const [metrics, setMetrics] = useState<ActivityMetrics>({
+    total_sessions: 0,
+    avg_duration_minutes: 0,
+    lessons_completed: 0,
+    practice_hours: 0,
+  })
+  const [hourlyActivity, setHourlyActivity] = useState<HourlyActivity[]>([])
+  const [dailyStats, setDailyStats] = useState<DailyStats[]>([])
+  const [courseUsage, setCourseUsage] = useState<CourseUsage[]>([])
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchActivityData()
+  }, [])
+
+  const fetchActivityData = async () => {
+    try {
+      setLoading(true)
+      const [metricsData, hourlyData, dailyData, courseData, recentData] = await Promise.all([
+        getAdminActivityMetrics(),
+        getAdminHourlyActivity(),
+        getAdminDailyActivityStats(),
+        getAdminCourseUsage(),
+        getAdminRecentActivity(20),
+      ])
+      setMetrics(metricsData)
+      setHourlyActivity(hourlyData)
+      setDailyStats(dailyData)
+      setCourseUsage(courseData)
+      setRecentActivity(recentData)
+    } catch (error) {
+      console.error("Error fetching activity data:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -68,10 +111,30 @@ export default function ActivityPage() {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard title="Total Sessions" value="2,847" change="+12.5%" icon="📊" />
-        <MetricCard title="Avg Session Duration" value="24 min" change="+3.2%" icon="⏱️" />
-        <MetricCard title="Lessons Completed" value="1,156" change="+8.1%" icon="✓" />
-        <MetricCard title="Total Practice Time" value="1,245 hrs" change="+15.3%" icon="🎯" />
+        <MetricCard 
+          title="Total Sessions" 
+          value={loading ? "..." : metrics.total_sessions.toLocaleString()} 
+          change="" 
+          icon="" 
+        />
+        <MetricCard 
+          title="Avg Session Duration" 
+          value={loading ? "..." : `${metrics.avg_duration_minutes} min`} 
+          change="" 
+          icon="⏱" 
+        />
+        <MetricCard 
+          title="Lessons Completed" 
+          value={loading ? "..." : metrics.lessons_completed.toLocaleString()} 
+          change="" 
+          icon="" 
+        />
+        <MetricCard 
+          title="Total Practice Time" 
+          value={loading ? "..." : `${metrics.practice_hours} hrs`} 
+          change="" 
+          icon="" 
+        />
       </div>
 
       {/* Charts */}
@@ -79,46 +142,58 @@ export default function ActivityPage() {
         {/* Hourly Activity */}
         <Card className="p-6 border-primary/30">
           <h2 className="text-xl font-bold text-foreground mb-4">Hourly Activity</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={hourlyActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-              <XAxis dataKey="hour" stroke="#999" />
-              <YAxis stroke="#999" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a1a1a",
-                  border: "1px solid #FF6B35",
-                  borderRadius: "4px",
-                }}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="logins" stroke="#FF6B35" strokeWidth={2} />
-              <Line type="monotone" dataKey="practices" stroke="#00D9FF" strokeWidth={2} />
-              <Line type="monotone" dataKey="lessons" stroke="#FF8C42" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={hourlyActivity}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                <XAxis dataKey="hour" stroke="#999" angle={-45} textAnchor="end" height={80} interval={1} tick={{ fontSize: 9 }} />
+                <YAxis stroke="#999" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a1a1a",
+                    border: "1px solid #FF6B35",
+                    borderRadius: "4px",
+                  }}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="logins" stroke="#FF6B35" strokeWidth={2} />
+                <Line type="monotone" dataKey="practices" stroke="#00D9FF" strokeWidth={2} />
+                <Line type="monotone" dataKey="lessons" stroke="#FF8C42" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         {/* Weekly Stats */}
         <Card className="p-6 border-primary/30">
           <h2 className="text-xl font-bold text-foreground mb-4">Weekly Statistics</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={dailyStats}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-              <XAxis dataKey="day" stroke="#999" />
-              <YAxis stroke="#999" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a1a1a",
-                  border: "1px solid #FF6B35",
-                  borderRadius: "4px",
-                }}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="users" stackId="1" stroke="#FF6B35" fill="#FF6B35" fillOpacity={0.6} />
-              <Area type="monotone" dataKey="sessions" stackId="1" stroke="#00D9FF" fill="#00D9FF" fillOpacity={0.6} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <AreaChart data={dailyStats}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                <XAxis dataKey="day" stroke="#999" />
+                <YAxis stroke="#999" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a1a1a",
+                    border: "1px solid #FF6B35",
+                    borderRadius: "4px",
+                  }}
+                />
+                <Legend />
+                <Area type="monotone" dataKey="users" stackId="1" stroke="#FF6B35" fill="#FF6B35" fillOpacity={0.6} />
+                <Area type="monotone" dataKey="sessions" stackId="1" stroke="#00D9FF" fill="#00D9FF" fillOpacity={0.6} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
 
@@ -127,51 +202,67 @@ export default function ActivityPage() {
         {/* Course Usage Distribution */}
         <Card className="p-6 border-primary/30">
           <h2 className="text-xl font-bold text-foreground mb-4">Course Usage Distribution</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={courseUsage}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                label={({ name, value }) => `${name} ${value}%`}
-                outerRadius={100}
-                fill="#FF6B35"
-                dataKey="value"
-              >
-                {courseUsage.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a1a1a",
-                  border: "1px solid #FF6B35",
-                  borderRadius: "4px",
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : courseUsage.length === 0 ? (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              No course usage data available
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={courseUsage as any}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={true}
+                  label={(props: any) => `${props.name} ${props.value}%`}
+                  outerRadius={100}
+                  fill="#FF6B35"
+                  dataKey="value"
+                >
+                  {courseUsage.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={chartColors[index % chartColors.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a1a1a",
+                    border: "1px solid #FF6B35",
+                    borderRadius: "4px",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         {/* Daily Completions */}
         <Card className="p-6 border-primary/30">
           <h2 className="text-xl font-bold text-foreground mb-4">Daily Completions</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dailyStats}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-              <XAxis dataKey="day" stroke="#999" />
-              <YAxis stroke="#999" />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "#1a1a1a",
-                  border: "1px solid #FF6B35",
-                  borderRadius: "4px",
-                }}
-              />
-              <Bar dataKey="completions" fill="#FF6B35" />
-            </BarChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
+              Loading...
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={dailyStats}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
+                <XAxis dataKey="day" stroke="#999" />
+                <YAxis stroke="#999" />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1a1a1a",
+                    border: "1px solid #FF6B35",
+                    borderRadius: "4px",
+                  }}
+                />
+                <Bar dataKey="completions" fill="#FF6B35" />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
 
@@ -191,32 +282,46 @@ export default function ActivityPage() {
               </tr>
             </thead>
             <tbody>
-              {dailyStats.map((day, idx) => (
-                <tr key={idx} className="border-b border-border/50 hover:bg-card/50">
-                  <td className="py-3 px-4 font-semibold text-foreground">{day.day}</td>
-                  <td className="text-right py-3 px-4 text-foreground">{day.users}</td>
-                  <td className="text-right py-3 px-4 text-foreground">{day.sessions}</td>
-                  <td className="text-right py-3 px-4 text-foreground">
-                    {Math.round((day.completions * 24) / day.sessions)} min
-                  </td>
-                  <td className="text-right py-3 px-4 text-foreground">{day.completions}</td>
-                  <td className="text-right py-3 px-4">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-primary"
-                          style={{
-                            width: `${Math.round((day.completions / day.sessions) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                      <span className="text-primary font-semibold text-xs">
-                        {Math.round((day.completions / day.sessions) * 100)}%
-                      </span>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    Loading usage data...
                   </td>
                 </tr>
-              ))}
+              ) : dailyStats.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-muted-foreground">
+                    No usage data available
+                  </td>
+                </tr>
+              ) : (
+                dailyStats.map((day, idx) => (
+                  <tr key={idx} className="border-b border-border/50 hover:bg-card/50">
+                    <td className="py-3 px-4 font-semibold text-foreground">{day.day}</td>
+                    <td className="text-right py-3 px-4 text-foreground">{day.users}</td>
+                    <td className="text-right py-3 px-4 text-foreground">{day.sessions}</td>
+                    <td className="text-right py-3 px-4 text-foreground">
+                      {day.sessions > 0 ? Math.round((day.completions * 24) / day.sessions) : 0} min
+                    </td>
+                    <td className="text-right py-3 px-4 text-foreground">{day.completions}</td>
+                    <td className="text-right py-3 px-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary"
+                            style={{
+                              width: `${day.sessions > 0 ? Math.round((day.completions / day.sessions) * 100) : 0}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-primary font-semibold text-xs">
+                          {day.sessions > 0 ? Math.round((day.completions / day.sessions) * 100) : 0}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -225,24 +330,30 @@ export default function ActivityPage() {
       {/* Recent Activity Log */}
       <Card className="p-6 border-primary/30">
         <h2 className="text-xl font-bold text-foreground mb-4">Recent Activity Log</h2>
-        <div className="space-y-3">
-          {recentActivity.map((activity) => (
-            <div
-              key={activity.id}
-              className="flex items-start justify-between p-4 bg-card/50 border border-border/30 rounded-lg hover:border-primary/50 transition-colors"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-primary">{activity.user}</span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="text-sm font-medium text-foreground">{activity.action}</span>
+        {loading ? (
+          <div className="py-8 text-center text-muted-foreground">Loading recent activity...</div>
+        ) : recentActivity.length === 0 ? (
+          <div className="py-8 text-center text-muted-foreground">No recent activity</div>
+        ) : (
+          <div className="space-y-3">
+            {recentActivity.map((activity) => (
+              <div
+                key={activity.id}
+                className="flex items-start justify-between p-4 bg-card/50 border border-border/30 rounded-lg hover:border-primary/50 transition-colors"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-primary">{activity.user}</span>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-sm font-medium text-foreground">{activity.action}</span>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{activity.details}</p>
                 </div>
-                <p className="text-sm text-muted-foreground">{activity.details}</p>
+                <span className="text-xs text-muted-foreground ml-4 flex-shrink-0">{activity.time}</span>
               </div>
-              <span className="text-xs text-muted-foreground ml-4 flex-shrink-0">{activity.time}</span>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   )
@@ -262,9 +373,9 @@ function MetricCard({ title, value, change, icon }: MetricCardProps) {
         <div>
           <p className="text-muted-foreground text-sm mb-1">{title}</p>
           <p className="text-3xl font-bold text-foreground">{value}</p>
-          <p className="text-xs text-green-400 mt-2">{change} from last week</p>
+          {change && <p className="text-xs text-green-400 mt-2">{change} from last week</p>}
         </div>
-        <span className="text-3xl opacity-50">{icon}</span>
+        {icon && <span className="text-3xl opacity-50">{icon}</span>}
       </div>
     </Card>
   )

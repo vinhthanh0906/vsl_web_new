@@ -1,0 +1,190 @@
+@startuml Admin System Architecture
+!theme plain
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+title Admin System Architecture
+
+package "Admin Frontend (Next.js/React)" {
+  component [Admin Login] as LoginPage
+  component [Admin Layout] as AdminLayout
+  component [Session Validator] as SessionValidator
+  
+  package "Admin Pages" {
+    component [Dashboard] as Dashboard
+    component [Users Management] as UsersPage
+    component [Lessons Management] as LessonsPage
+    component [Media Manager] as MediaPage
+    component [Exercises] as ExercisesPage
+    component [Activity Monitor] as ActivityPage
+  }
+  
+  component [Admin Sidebar] as Sidebar
+  component [Admin Auth Utils] as AdminAuth
+  component [API Client] as APIClient
+}
+
+package "Admin Backend (FastAPI)" {
+  component [CORS Middleware] as CORS
+  
+  package "Authentication Layer" {
+    component [Admin Login Endpoint] as AdminLogin
+    component [JWT Token Generator] as JWTGen
+    component [Admin Auth Middleware] as AdminAuthMW
+    component [Token Validator] as TokenValidator
+  }
+  
+  package "Admin API Routes" {
+    component [Users API] as UsersAPI
+    component [Courses API] as CoursesAPI
+    component [Media Upload API] as MediaAPI
+    component [Monitor API] as MonitorAPI
+  }
+  
+  package "Business Logic" {
+    component [User Service] as UserService
+    component [Course Service] as CourseService
+    component [Media Service] as MediaService
+    component [Activity Service] as ActivityService
+  }
+}
+
+database "PostgreSQL Database" {
+  entity "users" as UsersTable {
+    * id : INTEGER
+    * username : VARCHAR
+    * email : VARCHAR
+    * hashed_password : VARCHAR
+    * is_admin : BOOLEAN
+  }
+  
+  entity "courses" as CoursesTable {
+    * id : VARCHAR
+    * name : VARCHAR
+    * level : VARCHAR
+    * description : TEXT
+    * lesson_type : VARCHAR
+  }
+  
+  entity "lessons" as LessonsTable {
+    * id : INTEGER
+    * lesson_id : VARCHAR
+    * name : VARCHAR
+    * course_id : VARCHAR (FK)
+    * video_url : VARCHAR
+    * order : INTEGER
+  }
+  
+  entity "activity_logs" as ActivityLogsTable {
+    * id : INTEGER
+    user_id : INTEGER
+    * event_type : VARCHAR
+    detail : VARCHAR
+    * created_at : DATETIME
+  }
+  
+  entity "user_course_enrollments" as EnrollmentsTable
+  entity "user_lesson_progress" as ProgressTable
+}
+
+cloud "File Storage" {
+  component [Media Files] as MediaStorage
+}
+
+' Frontend connections
+LoginPage --> AdminLayout : "After Login"
+AdminLayout --> SessionValidator : "Validates Session"
+SessionValidator --> AdminAuth : "Check Token"
+AdminLayout --> Sidebar : "Renders"
+Sidebar --> Dashboard
+Sidebar --> UsersPage
+Sidebar --> LessonsPage
+Sidebar --> MediaPage
+Sidebar --> ExercisesPage
+Sidebar --> ActivityPage
+
+Dashboard --> APIClient
+UsersPage --> APIClient
+LessonsPage --> APIClient
+MediaPage --> APIClient
+ActivityPage --> APIClient
+APIClient --> AdminAuth : "Get Token"
+
+' Frontend to Backend
+APIClient --> AdminLogin : "POST /auth/admin/login"
+APIClient --> UsersAPI : "GET /admin/users\n(Bearer Token)"
+APIClient --> CoursesAPI : "GET/POST /courses\n(Bearer Token)"
+APIClient --> MediaAPI : "POST /courses/media/upload\n(Bearer Token)"
+APIClient --> MonitorAPI : "GET /admin/activity\n(Bearer Token)"
+
+' Backend flow
+AdminLogin --> JWTGen : "Generate Token"
+AdminLogin --> UsersTable : "Verify Credentials\nCheck is_admin"
+JWTGen --> APIClient : "Return access_token"
+
+UsersAPI --> AdminAuthMW : "Verify Admin"
+CoursesAPI --> AdminAuthMW : "Verify Admin"
+MediaAPI --> AdminAuthMW : "Verify Admin"
+MonitorAPI --> AdminAuthMW : "Verify Admin"
+
+AdminAuthMW --> TokenValidator : "Validate JWT"
+TokenValidator --> UsersTable : "Check is_admin flag"
+
+UsersAPI --> UserService
+UserService --> UsersTable : "Query Users"
+UserService --> EnrollmentsTable : "Query Enrollments"
+UserService --> ProgressTable : "Query Progress"
+
+CoursesAPI --> CourseService
+CourseService --> CoursesTable : "CRUD Operations"
+CourseService --> LessonsTable : "CRUD Operations"
+
+MediaAPI --> MediaService
+MediaService --> MediaStorage : "Store Files"
+MediaService --> LessonsTable : "Update video_url"
+
+MonitorAPI --> ActivityService
+ActivityService --> ActivityLogsTable : "Query Logs"
+ActivityService --> ProgressTable : "Query Stats"
+
+' Database relationships
+UsersTable ||--o{ EnrollmentsTable
+UsersTable ||--o{ ProgressTable
+UsersTable ||--o{ ActivityLogsTable
+CoursesTable ||--o{ LessonsTable
+CoursesTable ||--o{ EnrollmentsTable
+LessonsTable ||--o{ ProgressTable
+
+note right of AdminAuthMW
+  Admin Authorization:
+  1. Check JWT token
+  2. Verify user exists
+  3. Check is_admin flag
+  4. Or check ADMIN_USERS env var
+  5. Or check ADMIN_STATIC_TOKEN
+end note
+
+note right of SessionValidator
+  Frontend Session:
+  - Stores token in localStorage
+  - Validates 24-hour session
+  - Redirects to login if invalid
+end note
+
+note right of MediaStorage
+  Media Files:
+  - Stored in media_uploads/
+  - Images and videos
+  - Referenced by lessons
+end note
+
+note bottom of UsersTable
+  Admin users have
+  is_admin = true
+end note
+
+@enduml
+
+
+
+

@@ -1,0 +1,190 @@
+@startuml Practice with Camera Sequence Diagram
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 80
+
+title Practice Session with Camera - Real-time Sign Detection
+
+actor "User" as User
+participant "Practice Page\n(Next.js)" as PracticePage
+participant "Camera Feed\nComponent" as CameraFeed
+participant "Browser\nMediaDevices API" as Browser
+participant "YOLO API\n(FastAPI)" as YOLOAPI
+participant "YOLO Model\n(Ultralytics)" as YOLOModel
+participant "Progress API\n(FastAPI)" as ProgressAPI
+participant "Activity Logger\n(FastAPI)" as ActivityLogger
+database "PostgreSQL\nDatabase" as DB
+participant "localStorage" as LocalStorage
+
+== Page Initialization ==
+User -> PracticePage: Navigate to /practice?section=alphabet&lesson=a
+activate PracticePage
+PracticePage -> PracticePage: Extract section & lesson from URL params
+PracticePage -> PracticePage: Set isActive = true (auto-start)
+PracticePage -> PracticePage: Initialize state (detections, stats, matchCount)
+
+== Log Enter Lesson Event ==
+PracticePage -> LocalStorage: Get user data
+LocalStorage --> PracticePage: User object or null
+PracticePage -> ActivityLogger: POST /auth/log\n{user_id, event_type: "enter_lesson", lesson_id}
+activate ActivityLogger
+ActivityLogger -> DB: INSERT INTO activity_logs
+DB --> ActivityLogger: Success
+ActivityLogger --> PracticePage: Event logged
+deactivate ActivityLogger
+
+== Camera Initialization ==
+PracticePage -> CameraFeed: Render with isActive=true, targetLesson="a"
+activate CameraFeed
+CameraFeed -> Browser: navigator.mediaDevices.getUserMedia({video: {facingMode: "user"}})
+activate Browser
+
+alt Camera Permission Denied
+    Browser --> CameraFeed: Permission denied error
+    CameraFeed -> CameraFeed: Set error state
+    CameraFeed --> PracticePage: Show error message
+else Camera Access Granted
+    Browser --> CameraFeed: MediaStream object
+    CameraFeed -> CameraFeed: videoRef.srcObject = stream
+    CameraFeed -> CameraFeed: videoRef.play()
+    CameraFeed -> CameraFeed: startDetection()
+end
+deactivate Browser
+
+== Real-time Detection Loop ==
+loop Every Frame (requestAnimationFrame)
+    CameraFeed -> CameraFeed: Capture frame from video element
+    
+    note right of CameraFeed
+        Frame Capture Process:
+        1. Create hidden canvas
+        2. Draw video frame to canvas
+        3. Convert to base64 JPEG
+        4. Format: "data:image/jpeg;base64,..."
+    end note
+    
+    CameraFeed -> YOLOAPI: POST /yolo/predict\nContent-Type: application/json\nBody: {"image": "data:image/jpeg;base64,..."}
+    activate YOLOAPI
+    
+    YOLOAPI -> YOLOAPI: Extract base64 image data
+    YOLOAPI -> YOLOAPI: base64.b64decode(image.split(",")[1])
+    YOLOAPI -> YOLOAPI: Convert to numpy array
+    YOLOAPI -> YOLOAPI: cv2.imdecode() to OpenCV image
+    
+    YOLOAPI -> YOLOModel: model(img, verbose=False)
+    activate YOLOModel
+    note right of YOLOModel
+        YOLO Inference:
+        - Model: fullalphabet_yolo_v11s.pt
+        - Input: OpenCV image (BGR)
+        - Output: Detection boxes with:
+          * Class name (e.g., "a", "b")
+          * Confidence score (0-1)
+          * Bounding box [x1, y1, x2, y2]
+    end note
+    YOLOModel --> YOLOAPI: Detection results
+    deactivate YOLOModel
+    
+    YOLOAPI -> YOLOAPI: Process detections\nExtract class, confidence, bbox
+    YOLOAPI --> CameraFeed: 200 OK\n{"detections": [\n  {"class": "a", "confidence": 0.95, "bbox": [x1,y1,x2,y2]},\n  ...\n]}
+    deactivate YOLOAPI
+    
+    == Visual Feedback ==
+    CameraFeed -> CameraFeed: Draw bounding boxes on canvas overlay
+    note right of CameraFeed
+        Canvas Drawing:
+        - Clear previous frame
+        - For each detection:
+          * Draw bounding box
+          * Green if matches target, Orange otherwise
+          * Draw class name + confidence %
+    end note
+    
+    CameraFeed -> PracticePage: onDetections(detections)
+    CameraFeed -> PracticePage: onStatsUpdate({totalDetections, accuracy})
+    
+    PracticePage -> PracticePage: Update detections state
+    PracticePage -> PracticePage: Update stats state
+    PracticePage -> PracticePage: Check for match
+    
+    == Match Detection ==
+    PracticePage -> PracticePage: Find detection where\nclass.toLowerCase() === lesson.toLowerCase()
+    
+    alt Match Found AND cooldown not active
+        PracticePage -> PracticePage: Set cooldownRef.current = true
+        PracticePage -> PracticePage: Calculate accuracy = confidence * 100
+        PracticePage -> PracticePage: setShowCongrats(true)
+        PracticePage -> PracticePage: setMatchCount(prev => prev + 1)
+        PracticePage -> PracticePage: setDetectionStatus({detected, accuracy})
+        
+        PracticePage --> User: Show congrats popup
+        
+        == Save Progress Locally ==
+        PracticePage -> LocalStorage: markLessonComplete(section, lesson)
+        LocalStorage --> PracticePage: Progress saved locally
+        
+        == Save Progress to Database ==
+        PracticePage -> LocalStorage: Get user data
+        LocalStorage --> PracticePage: User object with id
+        PracticePage -> ProgressAPI: POST /progress/lesson/complete\nContent-Type: application/json\nBody: {\n  "user_id": 1,\n  "course_id": "alphabet",\n  "lesson_id": "a",\n  "accuracy": 95\n}
+        activate ProgressAPI
+        
+        ProgressAPI -> DB: Query Lesson WHERE lesson_id="a" AND course_id="alphabet"
+        DB --> ProgressAPI: Lesson record
+        
+        ProgressAPI -> DB: Query UserLessonProgress\nWHERE user_id=1 AND lesson_id=lesson.id
+        DB --> ProgressAPI: Progress record or null
+        
+        alt Progress Record Exists
+            ProgressAPI -> DB: UPDATE user_lesson_progress\nSET total_attempts = total_attempts + 1\nSET successful_detections = successful_detections + 1\nSET best_accuracy = MAX(best_accuracy, 95)\nSET completed = true\nSET last_practiced_at = NOW()
+        else Progress Record Not Found
+            ProgressAPI -> DB: INSERT INTO user_lesson_progress\n(user_id, lesson_id, course_id, completed, total_attempts, successful_detections, best_accuracy, last_practiced_at)
+        end
+        
+        DB --> ProgressAPI: Progress updated
+        ProgressAPI --> PracticePage: Success response
+        
+        note right of ProgressAPI
+            Progress Update:
+            - Increment total_attempts
+            - Increment successful_detections
+            - Update best_accuracy if higher
+            - Set completed = true
+            - Update last_practiced_at timestamp
+        end note
+        
+        deactivate ProgressAPI
+        
+        == Reset Cooldown ==
+        PracticePage -> PracticePage: setTimeout(() => cooldownRef = false, 3000)
+        
+    else No Match OR Cooldown Active
+        PracticePage -> PracticePage: Continue detection loop
+    end
+    
+    CameraFeed -> CameraFeed: requestAnimationFrame(detectFrame)
+end
+
+== User Controls ==
+alt User Clicks "Stop Detection"
+    User -> PracticePage: Click stop button
+    PracticePage -> PracticePage: setIsActive(false)
+    PracticePage -> CameraFeed: Update isActive prop
+    CameraFeed -> CameraFeed: cancelAnimationFrame()
+    CameraFeed -> Browser: stream.getTracks().forEach(track => track.stop())
+    CameraFeed -> CameraFeed: Clear canvas
+else User Clicks "Reset Counter"
+    User -> PracticePage: Click reset button
+    PracticePage -> PracticePage: setMatchCount(0)
+    PracticePage -> PracticePage: setDetectionStatus(null)
+    PracticePage -> PracticePage: cooldownRef.current = false
+end
+
+deactivate CameraFeed
+deactivate PracticePage
+
+@enduml
+
+
+
+

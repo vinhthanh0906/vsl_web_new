@@ -11,7 +11,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Hero Content */}
             <div className="space-y-6">
-              <h1 className="text-5xl lg:text-6xl font-bold text-foreground leading-tight">SIGNLEARN</h1>
+              <h1 className="text-5xl lg:text-6xl font-bold text-foreground leading-tight">VIETSIGNLEARN</h1>
               <p className="text-xl text-muted-foreground">Master Vietnamese Sign Language</p>
               <p className="text-lg text-muted-foreground leading-relaxed">
                 Learn to communicate with the deaf community through interactive lessons and real-time practice with AI
@@ -47,7 +47,7 @@ export default function HomePage() {
       {/* Features Section */}
       <section className="py-16 px-4 bg-card/50">
         <div className="container mx-auto max-w-6xl">
-          <h2 className="text-3xl font-bold text-foreground mb-12 text-center">Why Choose SignLearn?</h2>
+          <h2 className="text-3xl font-bold text-foreground mb-12 text-center">Why Choose VietSignLearn?</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Feature 1 */}
@@ -89,7 +89,7 @@ export default function HomePage() {
             <Link href="/courses">
               <Card className="p-8 hover:shadow-lg transition-all cursor-pointer hover:border-primary">
                 <h3 className="text-2xl font-bold text-foreground mb-2">Courses</h3>
-                <p className="text-muted-foreground mb-4">Browse our comprehensive course catalog</p>
+                <p className="text-muted-foreground mb-4">Browse our courses catalog</p>
                 <Button variant="ghost" className="w-full justify-start">
                   Explore Courses →
                 </Button>

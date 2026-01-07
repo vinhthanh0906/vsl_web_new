@@ -1,0 +1,257 @@
+@startuml User System Architecture
+!theme plain
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+title User System Architecture
+
+package "User Frontend (Next.js/React)" {
+  component [Landing Page] as LandingPage
+  component [Navbar] as Navbar
+  
+  package "Authentication" {
+    component [Login Page] as LoginPage
+    component [Signup Page] as SignupPage
+    component [Auth Utils] as AuthUtils
+  }
+  
+  package "User Pages" {
+    component [Courses Page] as CoursesPage
+    component [Practice Page] as PracticePage
+    component [Progress Page] as ProgressPage
+    component [Profile Page] as ProfilePage
+  }
+  
+  package "Components" {
+    component [Camera Feed] as CameraFeed
+    component [Detection Stats] as DetectionStats
+    component [Progress Chart] as ProgressChart
+    component [Congrats Popup] as CongratsPopup
+  }
+  
+  component [API Client] as APIClient
+  component [Analytics] as Analytics
+}
+
+package "User Backend (FastAPI)" {
+  component [CORS Middleware] as CORS
+  
+  package "Authentication Layer" {
+    component [User Register] as UserRegister
+    component [User Login] as UserLogin
+    component [JWT Generator] as JWTGen
+    component [Token Validator] as TokenValidator
+  }
+  
+  package "User API Routes" {
+    component [Courses API] as CoursesAPI
+    component [YOLO Prediction API] as YOLOAPI
+    component [Progress API] as ProgressAPI
+    component [Activity Logger] as ActivityLogger
+  }
+  
+  package "Business Logic" {
+    component [Course Service] as CourseService
+    component [YOLO Service] as YOLOService
+    component [Progress Service] as ProgressService
+    component [Analytics Service] as AnalyticsService
+  }
+}
+
+package "ML Model" {
+  component [YOLO Model] as YOLOModel
+  database "Model Files" as ModelFiles {
+    entity "fullalphabet_yolo_v11s.pt" as ModelFile
+  }
+}
+
+database "PostgreSQL Database" {
+  entity "users" as UsersTable {
+    * id : INTEGER
+    * username : VARCHAR
+    * email : VARCHAR
+    * hashed_password : VARCHAR
+    is_admin : BOOLEAN
+  }
+  
+  entity "courses" as CoursesTable {
+    * id : VARCHAR
+    * name : VARCHAR
+    * level : VARCHAR
+    * description : TEXT
+    * lesson_type : VARCHAR
+  }
+  
+  entity "lessons" as LessonsTable {
+    * id : INTEGER
+    * lesson_id : VARCHAR
+    * name : VARCHAR
+    * course_id : VARCHAR (FK)
+    * video_url : VARCHAR
+    * order : INTEGER
+  }
+  
+  entity "user_course_enrollments" as EnrollmentsTable {
+    * id : INTEGER
+    * user_id : INTEGER (FK)
+    * course_id : VARCHAR (FK)
+    enrolled_at : DATETIME
+    completed : BOOLEAN
+    progress_percentage : FLOAT
+  }
+  
+  entity "user_lesson_progress" as ProgressTable {
+    * id : INTEGER
+    * user_id : INTEGER (FK)
+    * lesson_id : INTEGER (FK)
+    * course_id : VARCHAR (FK)
+    completed : BOOLEAN
+    total_attempts : INTEGER
+    successful_detections : INTEGER
+    best_accuracy : FLOAT
+    last_practiced_at : DATETIME
+  }
+  
+  entity "activity_logs" as ActivityLogsTable {
+    * id : INTEGER
+    user_id : INTEGER
+    * event_type : VARCHAR
+    detail : VARCHAR
+    * created_at : DATETIME
+  }
+}
+
+cloud "File Storage" {
+  component [Media Files] as MediaStorage
+}
+
+cloud "Browser" {
+  component [Web Camera] as WebCamera
+  component [LocalStorage] as LocalStorage
+}
+
+' Frontend Navigation
+LandingPage --> Navbar
+Navbar --> LoginPage
+Navbar --> SignupPage
+Navbar --> CoursesPage
+Navbar --> PracticePage
+Navbar --> ProgressPage
+Navbar --> ProfilePage
+
+' Authentication Flow
+LoginPage --> APIClient : "POST /auth/login"
+SignupPage --> APIClient : "POST /auth/register"
+APIClient --> UserLogin
+APIClient --> UserRegister
+UserLogin --> JWTGen : "Generate Token"
+UserRegister --> JWTGen : "Generate Token"
+JWTGen --> LocalStorage : "Store Token"
+AuthUtils --> LocalStorage : "Get/Validate Token"
+
+' Courses Flow
+CoursesPage --> APIClient : "GET /courses"
+CoursesPage --> APIClient : "GET /courses/lessons/all"
+APIClient --> CoursesAPI
+CoursesAPI --> CourseService
+CourseService --> CoursesTable : "Query Courses"
+CourseService --> LessonsTable : "Query Lessons"
+CoursesPage --> MediaStorage : "Load Reference Videos"
+
+' Practice Flow
+PracticePage --> CameraFeed
+CameraFeed --> WebCamera : "Access Camera"
+CameraFeed --> APIClient : "POST /yolo/predict\n(base64 image)"
+APIClient --> YOLOAPI
+YOLOAPI --> YOLOService
+YOLOService --> YOLOModel : "Run Inference"
+YOLOModel --> ModelFile : "Load Model"
+YOLOModel --> YOLOService : "Return Detections"
+YOLOService --> CameraFeed : "Detection Results"
+CameraFeed --> DetectionStats : "Update Stats"
+PracticePage --> CongratsPopup : "Show on Match"
+PracticePage --> APIClient : "POST /progress/lesson/complete"
+APIClient --> ProgressAPI
+ProgressAPI --> ProgressService
+ProgressService --> ProgressTable : "Save Progress"
+PracticePage --> Analytics : "Log enter_lesson event"
+Analytics --> ActivityLogger
+ActivityLogger --> ActivityLogsTable : "Save Activity"
+
+' Progress Flow
+ProgressPage --> APIClient : "GET /progress/user/{id}"
+ProgressPage --> APIClient : "GET /progress/user/{id}/stats"
+ProgressPage --> APIClient : "GET /progress/user/{id}/daily-stats"
+ProgressPage --> APIClient : "GET /progress/user/{id}/practice-consistency"
+ProgressPage --> APIClient : "GET /progress/user/{id}/top-lessons"
+APIClient --> ProgressAPI
+ProgressAPI --> ProgressService
+ProgressService --> ProgressTable : "Query Progress"
+ProgressService --> EnrollmentsTable : "Query Enrollments"
+ProgressService --> ActivityLogsTable : "Query Activity"
+ProgressPage --> ProgressChart : "Display Charts"
+ProgressPage --> AnalyticsService : "Get Analytics"
+
+' Profile Flow
+ProfilePage --> APIClient : "GET /auth/profile"
+APIClient --> TokenValidator : "Validate Token"
+TokenValidator --> UsersTable : "Get User Info"
+
+' Database Relationships
+UsersTable ||--o{ EnrollmentsTable
+UsersTable ||--o{ ProgressTable
+UsersTable ||--o{ ActivityLogsTable
+CoursesTable ||--o{ LessonsTable
+CoursesTable ||--o{ EnrollmentsTable
+LessonsTable ||--o{ ProgressTable
+
+note right of CameraFeed
+  Real-time Detection:
+  1. Capture frame from camera
+  2. Convert to base64
+  3. Send to YOLO API
+  4. Receive detections
+  5. Draw bounding boxes
+  6. Compare with target lesson
+  7. Show feedback on match
+end note
+
+note right of YOLOModel
+  YOLO Model:
+  - Loaded once at startup
+  - Processes frames in real-time
+  - Returns: class, confidence, bbox
+  - Model: fullalphabet_yolo_v11s.pt
+end note
+
+note right of ProgressService
+  Progress Tracking:
+  - Lesson completion status
+  - Total attempts
+  - Successful detections
+  - Best accuracy achieved
+  - Last practiced timestamp
+end note
+
+note right of LocalStorage
+  Client Storage:
+  - JWT token
+  - User data (id, email, username)
+  - Local progress cache
+end note
+
+note bottom of PracticePage
+  Practice Flow:
+  1. User selects lesson
+  2. Camera starts automatically
+  3. Real-time detection runs
+  4. Match detected → Show congrats
+  5. Save progress to database
+  6. Log activity
+end note
+
+@enduml
+
+
+
+

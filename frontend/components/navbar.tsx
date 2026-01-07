@@ -28,8 +28,8 @@ export default function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <span className="text-2xl font-bold text-primary">⟨SL⟩</span>
-            <span className="text-xl font-bold text-foreground hidden sm:inline">SignLearn</span>
+            <span className="text-2xl font-bold text-primary">⟨VSL⟩</span>
+            <span className="text-xl font-bold text-foreground hidden sm:inline">VietSignLearn</span>
           </Link>
 
           {/* Desktop Navigation */}

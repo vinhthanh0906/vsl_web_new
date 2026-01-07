@@ -1,0 +1,127 @@
+@startuml Update Lesson Video Flow
+!theme plain
+skinparam sequenceMessageAlign center
+skinparam maxMessageSize 80
+
+title Update Lesson Video Flow
+
+actor "Admin User" as Admin
+participant "Admin Media Page\n(Next.js)" as MediaPage
+participant "API Client\n(lib/api.ts)" as APIClient
+participant "Admin Auth Middleware" as AuthMW
+participant "Courses API\n(FastAPI)" as Backend
+database "PostgreSQL\nDatabase" as DB
+participant "Media Storage\n(media_uploads/)" as Storage
+
+== Admin Initiates Update ==
+Admin -> MediaPage: Click "Update" button on lesson
+activate MediaPage
+MediaPage -> MediaPage: Open update dialog\nShow current video URL
+MediaPage --> Admin: Display update dialog
+
+== Admin Provides Media ==
+alt Upload Method: File Upload
+    Admin -> MediaPage: Select file to upload
+    MediaPage -> APIClient: uploadMediaFile(file)
+    activate APIClient
+    APIClient -> Backend: POST /courses/media/upload\nAuthorization: Bearer {admin_token}
+    activate Backend
+    Backend -> AuthMW: Verify admin token
+    AuthMW -> AuthMW: Validate JWT & check is_admin
+    AuthMW --> Backend: Admin authorized
+    Backend -> Storage: Save file to media_uploads/
+    Storage --> Backend: File saved
+    Backend --> APIClient: {url: "/media/filename.jpg"}
+    deactivate Backend
+    APIClient --> MediaPage: File URL returned
+    deactivate APIClient
+    MediaPage -> MediaPage: Construct full URL:\nhttp://127.0.0.1:8000/media/filename.jpg
+else Upload Method: Direct URL
+    Admin -> MediaPage: Enter video URL
+    MediaPage -> MediaPage: Use URL as-is
+end
+
+== Update Lesson Video ==
+Admin -> MediaPage: Click "Update" button
+MediaPage -> APIClient: updateLessonVideo(courseId, lessonId, videoUrl)
+activate APIClient
+note right of APIClient
+  Parameters:
+  - courseId: "alphabet"
+  - lessonId: 1
+  - videoUrl: "http://127.0.0.1:8000/media/file.jpg"
+end note
+
+APIClient -> Backend: PATCH /courses/{course_id}/lessons/{lesson_id}\nAuthorization: Bearer {admin_token}\nContent-Type: application/json\nBody: {"video_url": "http://..."}
+activate Backend
+
+== Backend Authentication ==
+Backend -> AuthMW: Verify admin token
+activate AuthMW
+AuthMW -> AuthMW: Extract JWT from header
+AuthMW -> AuthMW: Decode and validate token
+AuthMW -> DB: Query users WHERE username = token.sub
+DB --> AuthMW: User record
+AuthMW -> AuthMW: Check is_admin flag
+alt Not Admin
+    AuthMW --> Backend: 403 Forbidden
+    Backend --> APIClient: 403 Error
+    APIClient --> MediaPage: Authentication error
+    MediaPage --> Admin: Show error: "Admin privileges required"
+else Admin Authorized
+    AuthMW --> Backend: Admin verified
+    deactivate AuthMW
+
+== Validate Course ==
+Backend -> DB: SELECT * FROM courses WHERE id = course_id
+DB --> Backend: Course record or null
+alt Course Not Found
+    Backend -> Backend: db.rollback()
+    Backend --> APIClient: 404 "Course not found"
+    APIClient --> MediaPage: Error response
+    MediaPage --> Admin: Show error: "Course not found"
+else Course Found
+    == Validate Lesson ==
+    Backend -> DB: SELECT * FROM lessons\nWHERE id = lesson_id\nAND course_id = course_id
+    DB --> Backend: Lesson record or null
+    alt Lesson Not Found
+        Backend -> Backend: db.rollback()
+        Backend --> APIClient: 404 "Lesson not found"
+        APIClient --> MediaPage: Error response
+        MediaPage --> Admin: Show error: "Lesson not found"
+    else Lesson Found
+        == Update Video URL ==
+        Backend -> Backend: lesson.video_url = lesson_update.video_url
+        note right of Backend
+          Update SQL:
+          UPDATE lessons
+          SET video_url = 'http://...'
+          WHERE id = lesson_id
+          AND course_id = course_id
+        end note
+        
+        Backend -> DB: COMMIT transaction
+        DB --> Backend: Transaction committed
+        
+        Backend -> DB: REFRESH lesson record
+        DB --> Backend: Updated lesson data
+        
+        Backend --> APIClient: 200 OK\nLessonResponse JSON
+        deactivate Backend
+        APIClient --> MediaPage: Updated lesson data
+        deactivate APIClient
+        
+        == Frontend Update ==
+        MediaPage -> MediaPage: Refresh lessons list
+        MediaPage -> MediaPage: Close update dialog
+        MediaPage -> MediaPage: Clear form state
+        MediaPage --> Admin: Show success message\n"Lesson updated successfully"
+    end
+end
+deactivate MediaPage
+
+@enduml
+
+
+
+

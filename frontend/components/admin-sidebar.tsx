@@ -7,12 +7,11 @@ import { Button } from "@/components/ui/button"
 import { logoutAdmin } from "@/lib/admin-auth"
 
 const adminMenuItems = [
-  { href: "/admin/dashboard", label: "Dashboard", icon: "📊" },
-  { href: "/admin/users", label: "Users", icon: "👥" },
-  { href: "/admin/media", label: "Media Manager", icon: "🎬" },
-  { href: "/admin/lessons", label: "Lessons", icon: "📖" },
-  { href: "/admin/exercises", label: "Exercises", icon: "💪" },
-  { href: "/admin/activity", label: "Activity", icon: "📈" },
+  { href: "/admin/dashboard", label: "Dashboard", icon: "" },
+  { href: "/admin/users", label: "Users", icon: "" },
+  { href: "/admin/media", label: "Media Manager", icon: "" },
+  { href: "/admin/lessons", label: "Lessons", icon: "" },
+  { href: "/admin/activity", label: "Activity", icon: "" },
 ]
 
 export default function AdminSidebar() {
@@ -21,8 +20,8 @@ export default function AdminSidebar() {
 
   const isActive = (href: string) => pathname === href
 
-  const handleLogout = () => {
-    logoutAdmin()
+  const handleLogout = async () => {
+    await logoutAdmin()
     window.location.href = "/admin/login"
   }
 

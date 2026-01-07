@@ -1,0 +1,148 @@
+@startuml ERD
+!theme plain
+skinparam linetype ortho
+
+entity "User" as user {
+  * id : INTEGER <<PK>>
+  --
+  * username : VARCHAR <<UK>>
+  * email : VARCHAR <<UK>>
+  * hashed_password : VARCHAR
+  * is_admin : BOOLEAN
+}
+
+entity "Course" as course {
+  * id : VARCHAR <<PK>>
+  --
+  * name : VARCHAR
+  * level : VARCHAR
+  * description : TEXT
+  * lesson_type : VARCHAR
+}
+
+entity "Lesson" as lesson {
+  * id : INTEGER <<PK>>
+  --
+  * lesson_id : VARCHAR
+  * name : VARCHAR
+  * course_id : VARCHAR <<FK>>
+  video_url : VARCHAR
+  order : INTEGER
+}
+
+entity "UserCourseEnrollment" as enrollment {
+  * id : INTEGER <<PK>>
+  --
+  * user_id : INTEGER <<FK>>
+  * course_id : VARCHAR <<FK>>
+  enrolled_at : DATETIME
+  completed : BOOLEAN
+  completed_at : DATETIME
+  progress_percentage : FLOAT
+}
+
+entity "UserLessonProgress" as progress {
+  * id : INTEGER <<PK>>
+  --
+  * user_id : INTEGER <<FK>>
+  * lesson_id : INTEGER <<FK>>
+  * course_id : VARCHAR <<FK>>
+  completed : BOOLEAN
+  first_completed_at : DATETIME
+  last_practiced_at : DATETIME
+  total_attempts : INTEGER
+  successful_detections : INTEGER
+  best_accuracy : FLOAT
+}
+
+entity "ActivityLog" as activity {
+  * id : INTEGER <<PK>>
+  --
+  user_id : INTEGER
+  * event_type : VARCHAR
+  detail : VARCHAR
+  * created_at : DATETIME
+}
+
+entity "LessonCompletion" as completion {
+  * id : INTEGER <<PK>>
+  --
+  * lesson_id : INTEGER
+  * user_id : INTEGER
+  progress : FLOAT
+  * completed_at : DATETIME
+}
+
+entity "ModelInfo" as model {
+  * id : INTEGER <<PK>>
+  --
+  * name : VARCHAR <<UK>>
+  version : VARCHAR
+  description : VARCHAR
+  file_path : VARCHAR
+}
+
+' Relationships
+user ||--o{ enrollment : "enrolls in"
+course ||--o{ enrollment : "has enrollments"
+course ||--o{ lesson : "contains"
+user ||--o{ progress : "tracks progress"
+lesson ||--o{ progress : "tracked by"
+course }o--|| progress : "belongs to"
+user ||--o{ activity : "generates"
+user ||--o{ completion : "completes"
+lesson ||--o{ completion : "completed in"
+
+note right of user
+  Core user entity
+  Stores authentication info
+  Admin flag for role-based access
+end note
+
+note right of course
+  Learning courses
+  String ID as primary key
+  Contains multiple lessons
+end note
+
+note right of lesson
+  Individual lessons
+  Ordered within course
+  Has reference video/image
+end note
+
+note right of enrollment
+  Many-to-many relationship
+  User ↔ Course
+  Tracks enrollment and completion
+end note
+
+note right of progress
+  Detailed lesson progress
+  Tracks attempts and accuracy
+  Links User, Lesson, and Course
+end note
+
+note right of activity
+  Activity logging
+  user_id nullable for system logs
+  Tracks all user events
+end note
+
+note right of completion
+  Historical completion records
+  No explicit FK constraints
+  Legacy table
+end note
+
+note right of model
+  YOLO model metadata
+  Standalone entity
+  Model management
+end note
+
+@enduml
+
+
+
+

@@ -9,7 +9,7 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "SignLearn - Vietnamese Sign Language",
+  title: "VietSignLearn - Vietnamese Sign Language",
   description: "Learn Vietnamese Sign Language with AI-powered practice",
   generator: "v0.app",
 }
