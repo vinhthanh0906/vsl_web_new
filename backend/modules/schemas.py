@@ -29,6 +29,9 @@ class LessonBase(BaseModel):
 class LessonCreate(LessonBase):
     course_id: str
 
+class LessonUpdate(BaseModel):
+    video_url: Optional[str] = None
+
 class LessonResponse(LessonBase):
     id: int
     course_id: str

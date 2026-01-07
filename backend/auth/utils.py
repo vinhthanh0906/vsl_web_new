@@ -1,6 +1,9 @@
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+import sys
+sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/modules")
+from modules.timezone_utils import vietnam_now
 from fastapi import HTTPException, Depends
 from sqlalchemy.orm import Session
 
@@ -13,7 +16,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = vietnam_now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

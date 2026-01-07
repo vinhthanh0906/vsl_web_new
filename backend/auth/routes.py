@@ -74,6 +74,19 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
         token = create_access_token({"sub": db_user.email, "user_id": db_user.id})
         
+        # Log login event
+        try:
+            login_event = ActivityLog(
+                user_id=db_user.id,
+                event_type="login",
+                detail=f"User logged in from email: {user.email}"
+            )
+            db.add(login_event)
+            db.commit()
+        except Exception:
+            db.rollback()
+            # Don't fail login if logging fails
+        
         # Return user data along with token
         return {
             "access_token": token, 
@@ -127,6 +140,20 @@ def admin_login(payload: dict, db: Session = Depends(get_db)):
             raise HTTPException(status_code=403, detail="User does not have admin privileges")
 
         token = create_access_token({"sub": db_user.username})
+        
+        # Log admin login event
+        try:
+            login_event = ActivityLog(
+                user_id=db_user.id,
+                event_type="login",
+                detail=f"Admin logged in: {username}"
+            )
+            db.add(login_event)
+            db.commit()
+        except Exception:
+            db.rollback()
+            # Don't fail login if logging fails
+        
         return {"access_token": token, "token_type": "bearer"}
     except HTTPException:
         # Re-raise HTTP exceptions as-is

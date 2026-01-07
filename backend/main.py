@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import sys
+import os
 
 # Add your module paths
 sys.path.append(r"/Users/hungcucu/Documents/vsl_web_new/backend/auth")
@@ -62,6 +64,11 @@ app.include_router(yolo_router)
 app.include_router(monitor_routes.router)
 app.include_router(courses_router)
 app.include_router(progress_router)
+
+# Serve media files statically
+media_dir = "media_uploads"
+os.makedirs(media_dir, exist_ok=True)
+app.mount("/media", StaticFiles(directory=media_dir), name="media")
 
 
 

@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Boolean, Text, ForeignKey, DateT
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from modules.database import Base
+from modules.timezone_utils import vietnam_now
 
 class User(Base):
     __tablename__ = "users"
@@ -53,7 +54,7 @@ class UserCourseEnrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     course_id = Column(String, ForeignKey("courses.id"), nullable=False)
-    enrolled_at = Column(DateTime, default=datetime.utcnow)
+    enrolled_at = Column(DateTime, default=vietnam_now)
     completed = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
     progress_percentage = Column(Float, default=0.0)  # 0-100
@@ -74,7 +75,7 @@ class UserLessonProgress(Base):
     
     completed = Column(Boolean, default=False)
     first_completed_at = Column(DateTime, nullable=True)
-    last_practiced_at = Column(DateTime, default=datetime.utcnow)
+    last_practiced_at = Column(DateTime, default=vietnam_now)
     
     # Practice statistics
     total_attempts = Column(Integer, default=0)
